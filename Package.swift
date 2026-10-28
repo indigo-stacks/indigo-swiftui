@@ -112,11 +112,8 @@ let package = Package(
     .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.1"),
     .package(url: "https://github.com/indigo-stacks/composable-toasts", from: "1.1.2"),
     .package(url: "https://github.com/indigo-stacks/http-request-builder", from: "1.0.3"),
-    // TODO: pin `from: "2.0.0"` and `from: "3.0.0"` once both Pulse-free
-    // releases are tagged (indigo-stacks/http-request-client#4,
-    // indigo-stacks/jwt-auth-client#8).
-    .package(url: "https://github.com/indigo-stacks/http-request-client", branch: "main"),
-    .package(url: "https://github.com/indigo-stacks/jwt-auth-client", branch: "feat/decouple-pulse"),
+    .package(url: "https://github.com/indigo-stacks/http-request-client", from: "2.0.0"),
+    .package(url: "https://github.com/indigo-stacks/jwt-auth-client", from: "3.0.0"),
     .package(url: "https://github.com/kean/Pulse", from: "5.2.3"),
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.12.0"),
     .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.26.2"),

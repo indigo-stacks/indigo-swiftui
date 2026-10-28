@@ -1,5 +1,5 @@
 {
-  "originHash" : "507fd986b23b4564c6c6b844a348f7157b2bdacc74349c7fbeb39485a96884b5",
+  "originHash" : "a9d15696b299ea53c1834397a72fb8155dd90925c6853a8fea992998ec7ab6f5",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/indigo-stacks/http-request-client",
       "state" : {
-        "branch" : "main",
-        "revision" : "98d16df8075d346acd3198b5cf2ebb959e0eff47"
+        "revision" : "98d16df8075d346acd3198b5cf2ebb959e0eff47",
+        "version" : "2.0.0"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/indigo-stacks/jwt-auth-client",
       "state" : {
-        "branch" : "feat/decouple-pulse",
-        "revision" : "bdf8f78811578b045c6797982d5afc8d3caa106b"
+        "revision" : "bea899cb615a80b1b6462c9c7e051cedba09365f",
+        "version" : "3.0.0"
       }
     },
     {
