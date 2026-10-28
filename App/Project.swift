@@ -31,15 +31,15 @@ let project = Project(
         .project(target: "Core", path: .relativeToRoot("Core")),
         .project(target: "Components", path: .relativeToRoot("Components")),
         .project(target: "RootFeature", path: .relativeToRoot("RootFeature"))
-      ] + .indigoFoundation,
+      ] + .indigoFoundation + .debugTools,
       settings: .settings(
-        base: [
+        base: SettingsDictionary.debugToolsSettings.merging([
           "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": .string("mac.entitlements"),
           "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": .string("ios.entitlements"),
           "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": .string("ios.entitlements"),
           "OTHER_SWIFT_FLAGS": "$(inherited) -module-alias Sharing=SwiftSharing",
           "SWIFT_VERSION": "6.0"
-        ]
+        ]) { $1 }
       )
     ),
     .target(

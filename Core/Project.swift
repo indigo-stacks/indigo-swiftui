@@ -5,5 +5,6 @@ let project = Project.framework(
   name: "Core",
   dependencies: .indigoFoundation,
   testDependencies: .indigoFoundation,
-  usesSharing: true
+  usesSharing: true,
+  usesDebugTools: true
 )

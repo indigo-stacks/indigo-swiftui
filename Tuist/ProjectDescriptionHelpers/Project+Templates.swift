@@ -15,31 +15,55 @@ extension Array where Element == TargetDependency {
       .external(name: "JWTAuth"),
       .external(name: "JWTDecode"),
       .external(name: "Logging"),
-      .external(name: "LoggingClient"),
       .external(name: "Perception"),
-      .external(name: "Pulse"),
-      .external(name: "PulseUI"),
       .external(name: "Sharing"),
       .external(name: "SQLiteData"),
       .external(name: "SimpleKeychain"),
       .external(name: "SwiftNavigation")
     ]
   }
+
+  /// Debug-only tools: the Pulse network logger and its console UI.
+  ///
+  /// Kept out of `.indigoFoundation` so Release never links them. Any target
+  /// that depends on these must also apply `SettingsDictionary.debugToolsSettings`,
+  /// and must only `import` them under `#if DEBUG`.
+  public static var debugTools: [TargetDependency] {
+    [
+      .external(name: "Pulse"),
+      .external(name: "PulseUI")
+    ]
+  }
+}
+
+extension ProjectDescription.SettingsDictionary {
+  /// Drops the `.debugTools` frameworks from the link and embed phases of
+  /// Release builds, so no Pulse binary ships in a Release product.
+  ///
+  /// Apply to every target that depends on `.debugTools`, and to the app
+  /// target, which embeds them transitively.
+  public static var debugToolsSettings: SettingsDictionary {
+    ["EXCLUDED_SOURCE_FILE_NAMES[config=Release]": "Pulse*.framework"]
+  }
 }
 
 extension Project {
   /// Creates a framework project with the shared Indigo base settings.
   ///
-  /// - Parameter usesSharing: Pass `true` from any target that imports `Sharing`.
-  ///   The product ships aliased as `SwiftSharing`, so the flag applies
-  ///   `-module-alias Sharing=SwiftSharing` to the framework target **and**
-  ///   its generated test bundle.
+  /// - Parameters:
+  ///   - usesSharing: Pass `true` from any target that imports `Sharing`.
+  ///     The product ships aliased as `SwiftSharing`, so the flag applies
+  ///     `-module-alias Sharing=SwiftSharing` to the framework target **and**
+  ///     its generated test bundle.
+  ///   - usesDebugTools: Pass `true` to depend on `.debugTools` (Pulse) in
+  ///     Debug builds only. Release builds do not link them.
   public static func framework(
     name: String,
     reverseDomain: String = teamReverseDomain,
     dependencies: [TargetDependency] = [],
     testDependencies: [TargetDependency] = [],
-    usesSharing: Bool = false
+    usesSharing: Bool = false,
+    usesDebugTools: Bool = false
   ) -> Project {
     var baseSettings: SettingsDictionary = [
       "DEFINES_MODULE": "NO",
@@ -49,6 +73,9 @@ extension Project {
     if usesSharing {
       baseSettings["OTHER_SWIFT_FLAGS"] = "$(inherited) -module-alias Sharing=SwiftSharing"
       testSettings["OTHER_SWIFT_FLAGS"] = "$(inherited) -module-alias Sharing=SwiftSharing"
+    }
+    if usesDebugTools {
+      baseSettings.merge(.debugToolsSettings) { $1 }
     }
 
     return .init(
@@ -70,7 +97,7 @@ extension Project {
           deploymentTargets: .platforms,
           sources: ["Sources/**"],
           resources: ["Resources/**"],
-          dependencies: dependencies,
+          dependencies: dependencies + (usesDebugTools ? .debugTools : []),
           settings: .settings(
             base: baseSettings
           )

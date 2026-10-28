@@ -40,6 +40,8 @@ External packages flow through the `.indigoFoundation` helper (prevents double-l
 3. Add `.external(name:)` to `.indigoFoundation` in `Project+Templates.swift`.
 4. Run `mise exec -- tuist install && mise exec -- tuist generate`.
 
+Pulse and PulseUI are Debug-only: they live in `.debugTools`, not `.indigoFoundation`. A framework that needs them passes `usesDebugTools: true` to `Project.framework` (the app target adds `.debugTools` and `.debugToolsSettings` by hand), and imports them only under `#if DEBUG`. Release builds do not link or embed any `Pulse*.framework`.
+
 Any target that imports `Sharing` must be declared with `usesSharing: true`, because the product ships aliased as `SwiftSharing`. The flag aliases the framework target **and** its generated test bundle, so tests can `import Sharing` too. The app target is declared directly in `App/Project.swift` rather than through `Project.framework`, so it and its test target set the equivalent flag by hand: `"OTHER_SWIFT_FLAGS": "$(inherited) -module-alias Sharing=SwiftSharing"`.
 
 ## Conventions
