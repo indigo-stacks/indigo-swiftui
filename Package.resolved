@@ -1,5 +1,5 @@
 {
-  "originHash" : "342e46cabb33bc5a33fd7a141b159c87af65c126315e9a8f8d83408f254b6643",
+  "originHash" : "a9d15696b299ea53c1834397a72fb8155dd90925c6853a8fea992998ec7ab6f5",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/indigo-stacks/http-request-client",
       "state" : {
-        "revision" : "9133b9e19aabb60fa9194de6b291541fcc3823b4",
-        "version" : "1.6.0"
+        "revision" : "98d16df8075d346acd3198b5cf2ebb959e0eff47",
+        "version" : "2.0.0"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/indigo-stacks/jwt-auth-client",
       "state" : {
-        "revision" : "d2405c54d7f219d58b89e5bd9a9bb636f94157e0",
-        "version" : "2.1.0"
+        "revision" : "bea899cb615a80b1b6462c9c7e051cedba09365f",
+        "version" : "3.0.0"
       }
     },
     {
@@ -65,30 +65,12 @@
       }
     },
     {
-      "identity" : "logging-client",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/indigo-stacks/logging-client",
-      "state" : {
-        "revision" : "7f319b9e887303fbd49dbe1533e57f0104de16b4",
-        "version" : "2.0.0"
-      }
-    },
-    {
       "identity" : "pulse",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kean/pulse",
       "state" : {
         "revision" : "94b92731d370c129bb771e9c18f69b0a44ccca5c",
         "version" : "5.2.3"
-      }
-    },
-    {
-      "identity" : "pulseloghandler",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/kean/PulseLogHandler",
-      "state" : {
-        "revision" : "477e9ef76615f0b76b43bb502af432fe6750b704",
-        "version" : "5.1.0"
       }
     },
     {
@@ -182,15 +164,6 @@
       }
     },
     {
-      "identity" : "swift-file-logger",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/indigo-stacks/swift-file-logger",
-      "state" : {
-        "revision" : "f8e09b9301a13415c1be9b6e21ef42974ee04036",
-        "version" : "0.9.2"
-      }
-    },
-    {
       "identity" : "swift-identified-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-identified-collections",
@@ -258,8 +231,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-snapshot-testing",
       "state" : {
-        "revision" : "28e5de025e3fd98991791bfbf83023ab3708da03",
-        "version" : "1.19.6"
+        "revision" : "1488390b0735e726564b948bf08b384398bdab5c",
+        "version" : "1.19.7"
       }
     },
     {

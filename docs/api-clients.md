@@ -421,7 +421,7 @@ private struct TokenResponse: Decodable {
 
 `RefreshTokenRequest` and `TokenResponse` are declared at the bottom of the shipped file; rename their fields to match your API. Keys are sent as declared — the date and key strategies in `JSONCoders.api` are the thing to adjust per backend. Keep the `stagePublish` call: it is required for as long as `.gated` is installed, and dropping it lets a refresh that lands mid-sign-out sign the user back in. Keep `RefreshSingleFlight` too: the backend's refresh tokens are single-use with no grace window, so two refreshes racing from the same source token would let the loser's definitive 401 wipe a valid session — while a refresh is in flight, any other caller refreshing from the same token shares its outcome instead, and a caller that arrives after the network answered but before the rotation was saved reuses the retained result rather than re-sending the spent token. Keep the session check on the 401 as well: a caller that still sends a spent token after the session has rotated past it gets a plain failure for that request, not a `refreshRejected` that would destroy the newer credentials. Each sharing caller stages its own publish, and the gate writes the shared tokens once — unless that first save failed, in which case the next sharing caller persists them instead of trusting the in-memory session. A sharing caller that publishes after sign-out has destroyed the saved rotation is dropped, so the gated client revokes the rotated token sign-out never saw.
 
-The refresh request is sent on `networkSession` from `@Dependency(\.networkSession)` — the single `URLSession` every client under `Core/Sources/Clients` shares, declared in `Core/Sources/Clients/NetworkSession.swift`.
+The refresh request is sent on `networkSession` from `@Dependency(\.networkSession)` — the single `HTTPTransport` every client under `Core/Sources/Clients` shares, declared in `Core/Sources/Clients/NetworkSession.swift`. `HTTPTransport` is the Foundation-only protocol from `HTTPRequestClient`; `URLSession` conforms, so tests override the dependency with a plain `URLSession`.
 
 The library registers this transport as `jwtAuthClient`; `Core` also ships a readability alias for it in `Core/Sources/Clients/JWTAuthClient+Live.swift`, so `@Dependency(\.apiClient)` works out of the box:
 
@@ -559,6 +559,8 @@ try await apiClient.sendAuthenticated(decoder: .api, urlSession: networkSession)
 ```
 
 The `urlSession:` parameter defaults to `URLSession.shared`; passing the shared network session is what routes a DEBUG build's traffic into the network console — only requests made on the `URLSessionProxy` session reach it. Pass it on every `send` / `sendAuthenticated` call.
+
+Pulse is a Debug-only dependency. `NetworkSession.swift` imports it and adds `extension URLSessionProxy: @retroactive HTTPTransport {}` under `#if DEBUG`, and Release builds use a plain `URLSession`. The `.debugTools` dependency list and `usesDebugTools:` flag in `Project+Templates.swift` keep every `Pulse*.framework` out of the Release link and embed phases. Import `Pulse` or `PulseUI` only under `#if DEBUG`.
 
 The `sendAuthenticated` method:
 

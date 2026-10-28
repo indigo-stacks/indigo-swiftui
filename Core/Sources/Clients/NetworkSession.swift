@@ -1,8 +1,17 @@
 import Dependencies
 import Foundation
-import Pulse
+import HTTPRequestClient
 
-// The single `URLSession` every client in `Core` sends through. It is declared
+#if DEBUG
+  import Pulse
+
+  // Pulse ships in DEBUG builds only. Release builds neither import nor link
+  // it (see `pulseDebugOnly` in `Project+Templates.swift`), so the conformance
+  // that lets the logging proxy act as a transport is DEBUG-only too.
+  extension URLSessionProxy: @retroactive HTTPTransport {}
+#endif
+
+// The single transport every client in `Core` sends through. It is declared
 // as a dependency rather than a global so the app gets one immutable session
 // while tests override it through `withDependencies` — the same override seam
 // the rest of the codebase uses.
@@ -12,7 +21,7 @@ import Pulse
 // capture all traffic in the shipped network console: only requests made on the
 // `URLSessionProxy` session reach it.
 public enum NetworkSessionKey: DependencyKey {
-  public static let liveValue: any URLSessionProtocol = {
+  public static let liveValue: any HTTPTransport = {
     #if DEBUG
       return URLSessionProxy(configuration: .default)
     #else
@@ -25,7 +34,7 @@ public enum NetworkSessionKey: DependencyKey {
 }
 
 extension DependencyValues {
-  public var networkSession: any URLSessionProtocol {
+  public var networkSession: any HTTPTransport {
     get { self[NetworkSessionKey.self] }
     set { self[NetworkSessionKey.self] = newValue }
   }
