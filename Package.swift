@@ -61,7 +61,6 @@
     "Dependencies",
     "DependenciesMacros",
     "DequeModule",
-    "FileLogger",
     "GRDB",
     "GRDBSQLite",
     "HTTPRequestBuilder",
@@ -118,7 +117,6 @@ let package = Package(
     // indigo-stacks/jwt-auth-client#8).
     .package(url: "https://github.com/indigo-stacks/http-request-client", branch: "main"),
     .package(url: "https://github.com/indigo-stacks/jwt-auth-client", branch: "feat/decouple-pulse"),
-    .package(url: "https://github.com/indigo-stacks/swift-file-logger", from: "0.9.1"),
     .package(url: "https://github.com/kean/Pulse", from: "5.2.3"),
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.12.0"),
     .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.26.2"),
