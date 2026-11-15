@@ -82,6 +82,7 @@ extension Project {
       name: name,
       settings: .settings(
         base: [
+          "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": "YES",
           "ENABLE_MODULE_VERIFIER": "YES",
           "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
           "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": "gnu11 gnu++14",

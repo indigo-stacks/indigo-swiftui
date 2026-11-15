@@ -4,6 +4,9 @@ import ProjectDescriptionHelpers
 let project = Project(
   name: "App",
   settings: .settings(
+    base: [
+      "STRING_CATALOG_GENERATE_SYMBOLS": "YES"
+    ],
     configurations: [
       .debug(name: "Debug", xcconfig: .relativeToRoot("Configs/Debug.xcconfig")),
       .release(name: "Release", xcconfig: .relativeToRoot("Configs/Release.xcconfig"))
