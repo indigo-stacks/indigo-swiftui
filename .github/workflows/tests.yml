@@ -34,3 +34,38 @@ jobs:
 
       - name: Run tests
         run: mise exec -- tuist test --platform ios
+
+  test-macos:
+    name: Test macOS
+    # Same image as the iOS job; the macOS slice of every test bundle is only
+    # compiled and run here.
+    runs-on: xcode-27
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+
+      - name: Install Tuist
+        run: mise install
+
+      - name: Install dependencies
+        run: mise exec -- tuist install
+
+      - name: Generate project
+        run: mise exec -- tuist generate --no-open
+
+      - name: Inspect dependencies
+        run: mise exec -- tuist inspect dependencies
+
+      # Runners carry no Apple development certificate, so the macOS app and
+      # its test bundles are signed ad hoc; the sandbox entitlements still
+      # apply. The override lives here, not in the project manifests, so local
+      # builds keep using the developer's own signing identity.
+      - name: Run tests
+        run: >
+          mise exec -- tuist test AllTests --platform macos --no-selective-testing
+          -- CODE_SIGN_IDENTITY=-

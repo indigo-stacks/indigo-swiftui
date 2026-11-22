@@ -8,7 +8,7 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [ ] Run the macOS test suite in CI next to iOS (Tasker #539)
+- [x] Run the macOS test suite in CI next to iOS (Tasker #539)
   `.github/workflows/tests.yml` only runs `tuist test --platform ios`, so the
   macOS slice (its `#if os(iOS)` branches, `App/mac.entitlements`, the backup
   flag in `Core/Sources/Database/Connection.swift`) is never compiled in CI.
