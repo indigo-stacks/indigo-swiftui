@@ -2,27 +2,27 @@
 
 ## Introduction
 
-This guide covers how to implement local data persistence and caching using GRDB and SQLiteData, integrated with The Composable Architecture (TCA). The patterns described here provide type-safe, reactive, and testable data persistence.
+This guide covers how to implement local data persistence and caching using GRDB and SQLiteData, integrated with The Composable Architecture (TCA). The patterns described here provide type-safe and testable data persistence.
+
+The template reads through a dependency client (`NotesClient`) and refetches after writes. `@FetchAll` reactive queries are an alternative that the shipped example does not use; this guide keeps them marked as such.
 
 ```swift
-@FetchAll var notes: [Note] = []
-
-// Reactive queries that update automatically when data changes
+let notes = try await notesClient.fetchAll()
 ```
 
 Key advantages:
 
-- **Reactive Data Binding**: `@FetchAll` property wrapper for live queries
 - **Type Safety**: `@Table` macro eliminates schema/model mismatches
 - **TCA Integration**: Dependency injection for testability
 - **Concurrent Access**: `DatabasePool` for efficient read/write operations
+- **Explicit Data Flow**: every read and write goes through a testable client
 
 ## Dependencies
 
 Add this package to your project:
 
 ```swift
-.package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.4.0"),
+.package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.12.0"),
 ```
 
 GRDB is included as a transitive dependency through sqlite-data.
@@ -84,31 +84,49 @@ The `@Table` macro automatically generates:
 
 Define your schema using versioned migrations:
 
+The shipped implementation lives in `Core/Sources/Database/Migrations.swift` and `Core/Sources/Database/Connection.swift`. The migrator is a `DatabaseMigrator` extension, and each migration is a plain function:
+
 ```swift
 import GRDB
 import SQLiteData
 
-public enum AppMigrations {
-  public static func register(in migrator: inout DatabaseMigrator) {
-    migrator.registerMigration("v1", migrate: v1)
-    // Future migrations: v2, v3, etc.
+extension DatabaseMigrator {
+  /// The migrator the template applies to every database it opens.
+  static var baseMigrator: Self {
+    var migrator = DatabaseMigrator()
+
+    #if DEBUG
+      migrator.eraseDatabaseOnSchemaChange = true
+    #endif
+
+    migrator.registerV1Migration()
+    return migrator
   }
 
-  private static func v1(on database: Database) throws {
-    try #sql(
-      """
-      CREATE TABLE "notes" (
-        "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
-        "title" TEXT NOT NULL,
-        "body" TEXT NOT NULL DEFAULT '',
-        "createdAt" TEXT NOT NULL,
-        "updatedAt" TEXT
-      ) STRICT
-      """
-    ).execute(database)
+  mutating func registerV1Migration() {
+    registerMigration("v1") { database in
+      try v1(on: database)
+    }
   }
 }
+
+func v1(on database: Database) throws {
+  try #sql(
+    """
+    CREATE TABLE "notes" (
+      "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+      "title" TEXT NOT NULL,
+      "body" TEXT NOT NULL DEFAULT '',
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT
+    ) STRICT
+    """
+  )
+  .execute(database)
+}
 ```
+
+Future migrations get their own version string and a new `registerMigration` call.
 
 **Schema Guidelines:**
 
@@ -122,95 +140,79 @@ public enum AppMigrations {
 
 Set up the database connection with appropriate configuration:
 
+The shipped implementation lives in `Core/Sources/Database/Connection.swift`:
+
 ```swift
 import Dependencies
 import Foundation
-import GRDB
+import Logging
 import OSLog
+import SQLiteData
 
 private let logger = Logger(subsystem: "Core", category: "Database")
 
 public func appDatabase() throws -> any DatabaseWriter {
   @Dependency(\.context) var context
 
+  let database: any DatabaseWriter
   var configuration = Configuration()
+
   configuration.foreignKeysEnabled = true
 
-  #if DEBUG
-    configuration.prepareDatabase { db in
-      db.trace { logger.debug("\($0.expandedDescription)") }
-    }
-  #endif
-
-  let database: any DatabaseWriter
-
-  switch context {
-  case .live:
-    let folder = URL.applicationSupportDirectory
-      .appending(component: "Database", directoryHint: .isDirectory)
-    try FileManager.default.createDirectory(
-      at: folder,
-      withIntermediateDirectories: true
-    )
-    try (folder as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+  configuration.prepareDatabase { db in
     #if DEBUG
-      let file = folder.appending(component: "cache-debug.sqlite")
-    #else
-      let file = folder.appending(component: "cache.sqlite")
+      db.trace(options: .profile) {
+        if context == .live {
+          logger.debug("\($0.expandedDescription)")
+        } else {
+          print("\($0.expandedDescription)")
+        }
+      }
     #endif
-    database = try DatabasePool(path: file.path(), configuration: configuration)
-
-  case .preview:
-    database = try DatabaseQueue(configuration: configuration)
-
-  case .test:
-    let path = FileManager.default.temporaryDirectory
-      .appending(component: "\(UUID().uuidString).sqlite").path()
-    database = try DatabaseQueue(path: path, configuration: configuration)
   }
 
-  var migrator = DatabaseMigrator()
+  if context == .preview {
+    database = try DatabaseQueue(configuration: configuration)
+  } else {
+    let path: String
+    if context == .live {
+      let folder = URL.applicationSupportDirectory
+        .appending(component: "Database", directoryHint: .isDirectory)
+      try FileManager.default.createDirectory(
+        at: folder,
+        withIntermediateDirectories: true
+      )
+      try (folder as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+      #if DEBUG
+        let file = folder.appending(component: "cache-debug.sqlite")
+      #else
+        let file = folder.appending(component: "cache.sqlite")
+      #endif
+      path = file.path()
+    } else {
+      path = URL.temporaryDirectory
+        .appending(component: "\(UUID().uuidString).sqlite").path()
+    }
+    logger.info("Open \(path)")
+    database = try DatabasePool(path: path, configuration: configuration)
+  }
 
-  #if DEBUG
-    migrator.eraseDatabaseOnSchemaChange = true
-  #endif
-
-  AppMigrations.register(in: &migrator)
-  try migrator.migrate(database)
-
+  try DatabaseMigrator.baseMigrator.migrate(database)
   return database
 }
 ```
 
 **Connection Types:**
 
-| Context | Type            | Use Case                      |
-| ------- | --------------- | ----------------------------- |
-| Live    | `DatabasePool`  | Production - concurrent reads |
-| Preview | `DatabaseQueue` | SwiftUI previews - in-memory  |
-| Test    | `DatabaseQueue` | Unit tests - temporary files  |
+| Context | Type            | Use Case                                          |
+| ------- | --------------- | ------------------------------------------------- |
+| Live    | `DatabasePool`  | Production - Application Support, backup-excluded |
+| Preview | `DatabaseQueue` | SwiftUI previews - in-memory                      |
+| Test    | `DatabasePool`  | Unit tests - temporary files                      |
 
 ### Dependency Registration
 
-Register the database as a TCA dependency:
-
-```swift
-import Dependencies
-import GRDB
-
-public enum DefaultDatabaseKey: DependencyKey {
-  public static let liveValue: any DatabaseWriter = try! appDatabase()
-}
-
-extension DependencyValues {
-  public var defaultDatabase: any DatabaseWriter {
-    get { self[DefaultDatabaseKey.self] }
-    set { self[DefaultDatabaseKey.self] = newValue }
-  }
-}
-```
-
-Initialize in your app entry point:
+SQLiteData already provides the `defaultDatabase` dependency, so no custom `DependencyKey` is required. Assign it once in your app entry point:
 
 ```swift
 @main
@@ -223,11 +225,13 @@ struct MyApp: App {
 }
 ```
 
+Clients then read it with `@Dependency(\.defaultDatabase) var database`.
+
 ## Data Access Patterns
 
-### Option 1: Client Pattern (Recommended for Simple CRUD)
+### Option 1: Client Pattern (What the Template Ships)
 
-Create a dedicated client for data operations:
+The shipped example reads and writes through one dedicated client, `Core/Sources/Clients/NotesClient.swift`, and features refetch after every write. Create the client like this:
 
 ```swift
 import Dependencies
@@ -245,35 +249,42 @@ public struct NotesClient: Sendable {
 }
 
 extension NotesClient: DependencyKey {
-  public static let liveValue = { () -> Self in
+  public static var liveValue: NotesClient {
     @Dependency(\.defaultDatabase) var database
 
-    return Self {
-      try await database.read { db in
-        try Note.order(by: \.createdAt, .desc).fetchAll(db)
+    return NotesClient(
+      fetchAll: {
+        try await database.read { db in
+          try Note.fetchAll(db)
+        }
+      },
+      fetch: { id in
+        try await database.read { db in
+          try Note.where { $0.id.eq(id) }.fetchOne(db)
+        }
+      },
+      create: { title, body in
+        let note = Note(title: title, body: body)
+        try await database.write { db in
+          try Note.insert { Note.Draft(note) }.execute(db)
+        }
+        return note
+      },
+      update: { note in
+        var updated = note
+        updated.updatedAt = Date()
+
+        try await database.write { [updated] db in
+          try Note.upsert { Note.Draft(updated) }.execute(db)
+        }
+      },
+      delete: { id in
+        try await database.write { db in
+          try Note.where { $0.id.eq(id) }.delete().execute(db)
+        }
       }
-    } fetch: { id in
-      try await database.read { db in
-        try Note.find(id).fetchOne(db)
-      }
-    } create: { title, body in
-      let note = Note(title: title, body: body)
-      try await database.write { db in
-        try Note.upsert { .init(note) }.execute(db)
-      }
-      return note
-    } update: { note in
-      var updated = note
-      updated.updatedAt = Date()
-      try await database.write { db in
-        try Note.upsert { .init(updated) }.execute(db)
-      }
-    } delete: { id in
-      try await database.write { db in
-        try Note.where { $0.id == id }.delete().execute(db)
-      }
-    }
-  }()
+    )
+  }
 }
 
 extension DependencyValues {
@@ -303,7 +314,9 @@ struct NotesListFeature {
       case .deleteNote(let id):
         return .run { send in
           try await notesClient.delete(id)
-          await send(.noteDeleted)
+          // Refetch after the write so the list mirrors the database.
+          let notes = try await notesClient.fetchAll()
+          await send(.notesLoaded(notes))
         }
       }
     }
@@ -311,9 +324,9 @@ struct NotesListFeature {
 }
 ```
 
-### Option 2: Reactive Queries with @FetchAll (Recommended for Live Data)
+### Option 2: Reactive Queries with @FetchAll (Alternative — Not Used by the Template)
 
-For views that need to react to database changes automatically, use the `@FetchAll` property wrapper:
+The shipped features do not use `@FetchAll`: they hold plain arrays in state and refetch through the client after every write, which keeps the data flow explicit and easy to test. If your app prefers live queries instead, SQLiteData supports them with the `@FetchAll` property wrapper:
 
 ```swift
 import SQLiteData
@@ -616,22 +629,19 @@ import SQLiteData
 struct NotesListFeature {
   @ObservableState
   struct State: Equatable {
-    @ObservationStateIgnored
-    @FetchAll var notes: [Note] = []
+    var notes: [Note] = []
     var isLoading = false
     var errorMessage: String?
     @Presents var editor: NoteEditorFeature.State?
-
-    init() {
-      _notes = FetchAll(Note.order(by: \.createdAt, .desc))
-    }
   }
 
   enum Action {
     case onAppear
     case addButtonTapped
     case noteSelected(Note)
+    case notesLoaded(Result<[Note], Error>)
     case deleteNotes(IndexSet)
+    case deleteCompleted(Result<Void, Error>)
     case editor(PresentationAction<NoteEditorFeature.Action>)
   }
 
@@ -641,8 +651,19 @@ struct NotesListFeature {
     Reduce { state, action in
       switch action {
       case .onAppear:
-        // With @FetchAll, no explicit load needed
-        // Data is fetched automatically
+        state.isLoading = true
+        return .run { send in
+          await send(.notesLoaded(Result { try await notesClient.fetchAll() }))
+        }
+
+      case .notesLoaded(.success(let notes)):
+        state.isLoading = false
+        state.notes = notes.sorted { $0.createdAt > $1.createdAt }
+        return .none
+
+      case .notesLoaded(.failure(let error)):
+        state.isLoading = false
+        state.errorMessage = error.localizedDescription
         return .none
 
       case .addButtonTapped:
@@ -655,11 +676,34 @@ struct NotesListFeature {
 
       case .deleteNotes(let indexSet):
         let notesToDelete = indexSet.map { state.notes[$0] }
-        return .run { _ in
+        return .run { send in
           for note in notesToDelete {
             try await notesClient.delete(note.id)
           }
+          await send(.deleteCompleted(.success(())))
+        } catch: { error, send in
+          await send(.deleteCompleted(.failure(error)))
         }
+
+      case .deleteCompleted(.success):
+        // Refetch after the write instead of editing state in place.
+        return .send(.onAppear)
+
+      case .deleteCompleted(.failure(let error)):
+        state.errorMessage = error.localizedDescription
+        return .none
+
+      case .editor(.presented(.saveCompleted(.success))):
+        state.editor = nil
+        return .send(.onAppear)
+
+      case .editor(.presented(.deleteCompleted(.success))):
+        state.editor = nil
+        return .send(.onAppear)
+
+      case .editor(.dismiss):
+        state.editor = nil
+        return .none
 
       case .editor:
         return .none
@@ -709,4 +753,4 @@ struct NotesListView: View {
 | DataSyncClient  | API + local cache             | Clean separation          | More complexity          |
 | Two-Phase Write | Server as source of truth     | Data consistency          | Requires connectivity    |
 
-Choose the pattern that fits your app's requirements. For most apps with a remote API, combine `@FetchAll` for reads with the two-phase write pattern for mutations.
+The shipped example uses the client pattern for reads and writes, refetching through the client after every mutation; it does not sync with a remote API. The `DataSyncClient` and two-phase write patterns above are optional additions for apps that add a remote API on top of the local cache. `@FetchAll` remains available as an alternative for live queries, but nothing in the template uses it.

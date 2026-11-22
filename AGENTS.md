@@ -47,7 +47,7 @@ Any target that imports `Sharing` must be declared with `usesSharing: true`, bec
 ## Conventions
 
 - **Features:** `XFeature` for the `@Reducer`, `XView` for the SwiftUI view.
-- **Persistence:** SQLiteData `@Table` models; read reactively with `@FetchAll` (wrap it in `@ObservationStateIgnored` inside `@ObservableState`); write with the structured query API (`insert` / `upsert` / `where { … }.delete()`).
+- **Persistence:** SQLiteData `@Table` models; read through clients (`NotesClient` → `database.read`) and refetch after writes; write with the structured query API (`insert` / `upsert` / `where { … }.delete()`). `@FetchAll` reactive reads are an alternative the shipped example does not use.
 - **Clients:** TCA `@DependencyClient` structs — see `Core/Sources/Clients`.
 - **Networking / auth:** `JWTAuthClient+Live` demonstrates the token-refresh contract — map a **401** from `api/v1/auth/refresh-access` to `AuthTokens.Error.refreshRejected` (the only error that wipes credentials); let every other failure propagate so a transient outage doesn't log the user out.
 - Swift 6 strict concurrency; 2-space indentation (see `.swift-format`).

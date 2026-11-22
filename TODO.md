@@ -8,7 +8,7 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [ ] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
+- [x] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
   AGENTS.md says reads use `@FetchAll`, but the shipped example reads through
   `NotesClient` and refetches after writes. docs/local-caching.md declares a
   custom `DefaultDatabaseKey` (SQLiteData already provides `defaultDatabase`),
