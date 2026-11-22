@@ -8,16 +8,6 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [x] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
-  `AuthView` and `ForgotPasswordView` have no `@FocusState`: Return does not
-  move to the next field or submit. Add a focus enum (name, email, password)
-  with `.submitLabel(.next)` / `.onSubmit` moving focus forward, and
-  `.submitLabel(.go)` / `.onSubmit { store.send(.submitButtonTapped) }` on the
-  last field of both forms. Give the loading `ProgressView` in each submit
-  button an accessibility label. The reducers already guard submit, so no
-  reducer change.
-  Acceptance: Return on the last field submits both forms; the macOS
-  `AllTests` run passes.
 - [ ] Document RootFeature, AuthFeature and AccountFeature in the README and AGENTS.md module layout (Tasker #541)
   README "Project Architecture" lists only the notes features, and its graph
   shows App depending on them directly; the shipped graph is App → RootFeature
@@ -26,6 +16,26 @@ without `--platform`); do not rely on a simulator run.
   a `Project.swift` and redraw the graph from the manifests.
   Acceptance: README and AGENTS.md list every module directory; the README
   graph matches the `.project(target:)` entries in the manifests.
+- [ ] Make note rows real buttons and label the add-note toolbar button (Tasker #547)
+  `NotesListView` opens a note through `.onTapGesture` on the row, so
+  VoiceOver does not announce it as a button and macOS keyboard users cannot
+  activate it. The add-note toolbar button has a bare `plus` image. Wrap each
+  row in a `Button` sending `.noteSelected(note)` (keep the row look and
+  `.onDelete`), and use `Label("New Note", systemImage: "plus")`. No reducer
+  change.
+  Acceptance: no `onTapGesture` remains in `NotesListView.swift`; the add
+  button has a text label; the macOS `AllTests` run passes.
+- [ ] Rewrite docs/migration-guide.md against the shipped Tuist manifests (Tasker #548)
+  The guide pins Tuist 4.202.2 (shipped 4.208.0), lists a nonexistent
+  `Indigo` project, documents a `Project.framework(tca:)` helper that no
+  longer exists, sets iOS 18 / macOS 15 targets (shipped 26), copies stale
+  xcconfig and `App/Project.swift` samples, and lists `tuist build` without a
+  platform. Docs only: use excerpts from or paths to the shipped files,
+  describe `.indigoFoundation`, `usesSharing`, `usesDebugTools` and
+  `AllTests`, and keep the generic migration steps.
+  Acceptance: every pin, helper signature, deployment target and module name
+  matches the manifests; no command runs `tuist build`/`test` without
+  `--platform`.
 
 ## Not ready
 
@@ -85,3 +95,4 @@ Shipped and merged; kept as a short record so the work is not re-proposed.
 - [x] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
 - [x] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
 - [x] Run the macOS test suite in CI next to iOS (Tasker #539)
+- [x] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
