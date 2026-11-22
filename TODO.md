@@ -8,7 +8,7 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [ ] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
+- [x] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
   `AuthView` and `ForgotPasswordView` have no `@FocusState`: Return does not
   move to the next field or submit. Add a focus enum (name, email, password)
   with `.submitLabel(.next)` / `.onSubmit` moving focus forward, and

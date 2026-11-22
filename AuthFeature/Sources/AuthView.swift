@@ -246,6 +246,15 @@ public struct AuthFeature: Sendable {
 
 public struct AuthView: View {
   @Bindable var store: StoreOf<AuthFeature>
+  @FocusState private var focusedField: Field?
+
+  /// The form's text fields in Return-key order: each field's `.onSubmit`
+  /// advances focus to the next one, and the last field submits the form.
+  private enum Field: Hashable {
+    case name
+    case email
+    case password
+  }
 
   public init(store: StoreOf<AuthFeature>) {
     self.store = store
@@ -269,6 +278,9 @@ public struct AuthView: View {
       if store.mode == .signUp {
         TextField("Name", text: $store.name)
           .disabled(store.isLoading)
+          .focused($focusedField, equals: .name)
+          .submitLabel(.next)
+          .onSubmit { focusedField = .email }
           #if os(iOS)
           .textInputAutocapitalization(.words)
           #endif
@@ -276,6 +288,9 @@ public struct AuthView: View {
 
       TextField("Email", text: $store.email)
         .disabled(store.isLoading)
+        .focused($focusedField, equals: .email)
+        .submitLabel(.next)
+        .onSubmit { focusedField = .password }
         #if os(iOS)
         .keyboardType(.emailAddress)
         .textInputAutocapitalization(.never)
@@ -285,6 +300,9 @@ public struct AuthView: View {
 
       SecureField("Password", text: $store.password)
         .disabled(store.isLoading)
+        .focused($focusedField, equals: .password)
+        .submitLabel(.go)
+        .onSubmit { store.send(.submitButtonTapped) }
         .textContentType(store.mode == .signUp ? .newPassword : .password)
 
       if store.mode == .signIn {
@@ -301,7 +319,10 @@ public struct AuthView: View {
         HStack {
           Spacer()
           if store.isLoading {
+            // Announce what the spinner stands in for; the visible title is
+            // hidden while loading.
             ProgressView()
+              .accessibilityLabel(store.mode == .signUp ? Text("Signing up") : Text("Signing in"))
           } else {
             Text(store.mode == .signUp ? "Sign Up" : "Sign In")
           }

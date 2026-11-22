@@ -129,6 +129,8 @@ public struct ForgotPasswordView: View {
 
           TextField("Email", text: $store.email)
             .disabled(store.isLoading)
+            .submitLabel(.go)
+            .onSubmit { store.send(.submitButtonTapped) }
             #if os(iOS)
               .keyboardType(.emailAddress)
               .textInputAutocapitalization(.never)
@@ -143,6 +145,7 @@ public struct ForgotPasswordView: View {
               Spacer()
               if store.isLoading {
                 ProgressView()
+                  .accessibilityLabel(Text("Sending reset link"))
               } else {
                 Text("Send Reset Link")
               }
