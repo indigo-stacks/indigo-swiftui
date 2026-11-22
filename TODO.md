@@ -2,12 +2,41 @@
 
 ## Architecture Sync
 
-Ordered by priority; where an item depends on an earlier one it says so. Each is
-scoped to one focused pull request. Validate Swift changes with
-`mise exec -- tuist generate --no-open` followed by
-`mise exec -- tuist build --platform ios` (the generated project has
-multi-platform targets, so `tuist build` requires an explicit `--platform`);
-do not rely on a simulator run.
+Ordered by priority, next task first. Each is scoped to one focused pull
+request. Validate Swift changes with `mise exec -- tuist generate --no-open`
+followed by `mise exec -- tuist test AllTests --platform macos --no-selective-testing`
+(the generated project has multi-platform targets, so never run `tuist build`
+without `--platform`); do not rely on a simulator run.
+
+- [ ] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
+  `mise exec -- tuist inspect dependencies` fails on main: NoteEditorFeatureTests
+  implicitly depends on ComposableArchitecture and Core; NotesListFeatureTests on
+  ComposableArchitecture, Core and NoteEditorFeature. Add `testDependencies`
+  (Core + `.indigoFoundation`, plus NoteEditorFeature for NotesListFeature) to
+  their `Project.swift`, matching `AuthFeature/Project.swift`. Replace the
+  deprecated `tuist inspect implicit-imports` / `redundant-imports` commands with
+  `mise exec -- tuist inspect dependencies` in AGENTS.md, README.md and
+  `.agents/skills/tuist-inspect/SKILL.md`, and add that command as a step after
+  `Generate project` in `.github/workflows/tests.yml`.
+  Acceptance: `tuist inspect dependencies` exits 0; no doc references the
+  deprecated commands; the macOS `AllTests` run passes.
+- [ ] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
+  AGENTS.md says reads use `@FetchAll`, but the shipped example reads through
+  `NotesClient` and refetches after writes. docs/local-caching.md declares a
+  custom `DefaultDatabaseKey` (SQLiteData already provides `defaultDatabase`),
+  shows an `AppMigrations.register(in:)` enum (shipped: `DatabaseMigrator.baseMigrator`
+  + `registerV1Migration()`), says tests use a `DatabaseQueue` (shipped: a
+  `DatabasePool` at a temporary path), and pins sqlite-data `1.4.0` (shipped:
+  1.12.0). Docs only: align those sections with `Core/Sources/Database` and keep
+  `@FetchAll` marked as an alternative the example does not use.
+  Acceptance: `grep -r "AppMigrations\|DefaultDatabaseKey" docs/` returns nothing;
+  AGENTS.md no longer implies the example uses `@FetchAll`.
+
+## Not ready
+
+- Tasker #37 — blocked: Move from Tuist to new Xcode format
+- Tasker #523 — paused: Proposal: In-app account deletion from AccountFeature
+- Tasker #524 — paused: Proposal: Ship a String Catalog for user-facing strings
 
 ## Completed
 
@@ -53,3 +82,8 @@ Shipped and merged; kept as a short record so the work is not re-proposed.
 - [x] Ship an `AccountClient` that fetches the signed-in profile
 - [x] Add an `AccountFeature` module that shows the signed-in profile
 - [x] Present `AccountFeature` from `RootFeature` for signed-in users
+- [x] Adopt HTTPTransport and ship Pulse in Debug builds only
+- [x] Adopt Xcode 27.2 recommended project settings
+- [x] Decouple Pulse from http-request-client and jwt-auth-client (Tasker #405)
+- [x] Adopt the Pulse-free http-request-client and jwt-auth-client in indigo-swiftui (Tasker #406)
+- [x] Make logging-client Pulse-free (PulseLogHandler as an optional Debug layer) (Tasker #407)
