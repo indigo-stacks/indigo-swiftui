@@ -8,18 +8,6 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [x] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
-  `mise exec -- tuist inspect dependencies` fails on main: NoteEditorFeatureTests
-  implicitly depends on ComposableArchitecture and Core; NotesListFeatureTests on
-  ComposableArchitecture, Core and NoteEditorFeature. Add `testDependencies`
-  (Core + `.indigoFoundation`, plus NoteEditorFeature for NotesListFeature) to
-  their `Project.swift`, matching `AuthFeature/Project.swift`. Replace the
-  deprecated `tuist inspect implicit-imports` / `redundant-imports` commands with
-  `mise exec -- tuist inspect dependencies` in AGENTS.md, README.md and
-  `.agents/skills/tuist-inspect/SKILL.md`, and add that command as a step after
-  `Generate project` in `.github/workflows/tests.yml`.
-  Acceptance: `tuist inspect dependencies` exits 0; no doc references the
-  deprecated commands; the macOS `AllTests` run passes.
 - [ ] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
   AGENTS.md says reads use `@FetchAll`, but the shipped example reads through
   `NotesClient` and refetches after writes. docs/local-caching.md declares a
@@ -31,6 +19,33 @@ without `--platform`); do not rely on a simulator run.
   `@FetchAll` marked as an alternative the example does not use.
   Acceptance: `grep -r "AppMigrations\|DefaultDatabaseKey" docs/` returns nothing;
   AGENTS.md no longer implies the example uses `@FetchAll`.
+- [ ] Run the macOS test suite in CI next to iOS (Tasker #539)
+  `.github/workflows/tests.yml` only runs `tuist test --platform ios`, so the
+  macOS slice (its `#if os(iOS)` branches, `App/mac.entitlements`, the backup
+  flag in `Core/Sources/Database/Connection.swift`) is never compiled in CI.
+  Add a macOS job (or an ios/macos matrix) with the same setup steps, ending in
+  `mise exec -- tuist test AllTests --platform macos --no-selective-testing`.
+  Keep the iOS job unchanged; put any runner signing override in the job, not
+  the manifests.
+  Acceptance: the PR shows passing Test iOS and Test macOS checks.
+- [ ] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
+  `AuthView` and `ForgotPasswordView` have no `@FocusState`: Return does not
+  move to the next field or submit. Add a focus enum (name, email, password)
+  with `.submitLabel(.next)` / `.onSubmit` moving focus forward, and
+  `.submitLabel(.go)` / `.onSubmit { store.send(.submitButtonTapped) }` on the
+  last field of both forms. Give the loading `ProgressView` in each submit
+  button an accessibility label. The reducers already guard submit, so no
+  reducer change.
+  Acceptance: Return on the last field submits both forms; the macOS
+  `AllTests` run passes.
+- [ ] Document RootFeature, AuthFeature and AccountFeature in the README and AGENTS.md module layout (Tasker #541)
+  README "Project Architecture" lists only the notes features, and its graph
+  shows App depending on them directly; the shipped graph is App → RootFeature
+  → AccountFeature, AuthFeature, NotesListFeature (→ NoteEditorFeature).
+  AGENTS.md "Layout" omits RootFeature. Docs only: list every module that has
+  a `Project.swift` and redraw the graph from the manifests.
+  Acceptance: README and AGENTS.md list every module directory; the README
+  graph matches the `.project(target:)` entries in the manifests.
 
 ## Not ready
 
@@ -87,3 +102,4 @@ Shipped and merged; kept as a short record so the work is not re-proposed.
 - [x] Decouple Pulse from http-request-client and jwt-auth-client (Tasker #405)
 - [x] Adopt the Pulse-free http-request-client and jwt-auth-client in indigo-swiftui (Tasker #406)
 - [x] Make logging-client Pulse-free (PulseLogHandler as an optional Debug layer) (Tasker #407)
+- [x] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
