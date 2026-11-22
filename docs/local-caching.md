@@ -693,6 +693,18 @@ struct NotesListFeature {
         state.errorMessage = error.localizedDescription
         return .none
 
+      case .editor(.presented(.saveCompleted(.success))):
+        state.editor = nil
+        return .send(.onAppear)
+
+      case .editor(.presented(.deleteCompleted(.success))):
+        state.editor = nil
+        return .send(.onAppear)
+
+      case .editor(.dismiss):
+        state.editor = nil
+        return .none
+
       case .editor:
         return .none
       }
@@ -741,4 +753,4 @@ struct NotesListView: View {
 | DataSyncClient  | API + local cache             | Clean separation          | More complexity          |
 | Two-Phase Write | Server as source of truth     | Data consistency          | Requires connectivity    |
 
-The shipped example combines the client pattern for reads and writes — refetching through the client after every mutation — with the two-phase write pattern where the API is the source of truth. `@FetchAll` remains available as an alternative for live queries, but nothing in the template uses it.
+The shipped example uses the client pattern for reads and writes, refetching through the client after every mutation; it does not sync with a remote API. The `DataSyncClient` and two-phase write patterns above are optional additions for apps that add a remote API on top of the local cache. `@FetchAll` remains available as an alternative for live queries, but nothing in the template uses it.
