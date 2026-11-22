@@ -21,7 +21,7 @@ mise exec -- tuist test --platform ios    # or: --platform macos
 
 - Regenerate after any change to `Package.swift`, `Workspace.swift`, or a `Project.swift`.
 - `AllTests` is the workspace scheme that runs every module's test bundle (`mise exec -- tuist test AllTests`, or ⌘U in Xcode).
-- Check import hygiene with `mise exec -- tuist inspect implicit-imports` / `mise exec -- tuist inspect redundant-imports`.
+- Check the dependency graph with `mise exec -- tuist inspect dependencies`.
 
 ## Layout
 

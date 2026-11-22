@@ -5,5 +5,8 @@ let project = Project.framework(
   name: "NoteEditorFeature",
   dependencies: [
     .project(target: "Core", path: .relativeToRoot("Core"))
+  ] + .indigoFoundation,
+  testDependencies: [
+    .project(target: "Core", path: .relativeToRoot("Core"))
   ] + .indigoFoundation
 )

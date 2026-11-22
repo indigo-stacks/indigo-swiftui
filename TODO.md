@@ -8,7 +8,7 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [ ] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
+- [x] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
   `mise exec -- tuist inspect dependencies` fails on main: NoteEditorFeatureTests
   implicitly depends on ComposableArchitecture and Core; NotesListFeatureTests on
   ComposableArchitecture, Core and NoteEditorFeature. Add `testDependencies`
