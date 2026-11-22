@@ -105,8 +105,7 @@ dependencies: [
    ```sh
    mise exec -- tuist install
    mise exec -- tuist generate
-   mise exec -- tuist inspect implicit-imports
-   mise exec -- tuist inspect redundant-imports
+   mise exec -- tuist inspect dependencies
    ```
 
 ### Making Project Changes

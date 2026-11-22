@@ -29,5 +29,8 @@ jobs:
       - name: Generate project
         run: mise exec -- tuist generate --no-open
 
+      - name: Inspect dependencies
+        run: mise exec -- tuist inspect dependencies
+
       - name: Run tests
         run: mise exec -- tuist test --platform ios
