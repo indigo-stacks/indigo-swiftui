@@ -8,7 +8,7 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [ ] Document RootFeature, AuthFeature and AccountFeature in the README and AGENTS.md module layout (Tasker #541)
+- [x] Document RootFeature, AuthFeature and AccountFeature in the README and AGENTS.md module layout (Tasker #541)
   README "Project Architecture" lists only the notes features, and its graph
   shows App depending on them directly; the shipped graph is App → RootFeature
   → AccountFeature, AuthFeature, NotesListFeature (→ NoteEditorFeature).

@@ -47,9 +47,12 @@ npx skills add https://github.com/4rays/xbridge
 
 This project is organized into multiple modules:
 
-- **App**: The main iOS/macOS application targets that depend on Core, Components, and feature modules
-- **Core**: Business logic, data models, and shared utilities
+- **App**: The main iOS/macOS application target that depends on Core, Components, and RootFeature
+- **Core**: Business logic, data models, database, and shared clients
 - **Components**: Reusable SwiftUI components with no external dependencies for maximum portability
+- **RootFeature**: Session shell that presents the notes list for signed-in users and the sign-in and account sheets, and owns sign-out
+- **AuthFeature**: Sign-in, sign-up, and forgot-password forms
+- **AccountFeature**: Signed-in profile screen
 - **NotesListFeature** and **NoteEditorFeature**: Example TCA-based feature modules with their respective reducers and views
 
 ### Dependency Graph
@@ -58,12 +61,31 @@ This project is organized into multiple modules:
 App
 ├── Core (business logic)
 ├── Components (reusable UI components, no dependencies)
-├── NotesListFeature (TCA-based feature)
-├── NoteEditorFeature (TCA-based feature)
+├── RootFeature (session shell)
+└── External packages (via .indigoFoundation helper)
+
+RootFeature
+├── AccountFeature (signed-in profile)
+├── AuthFeature (sign-in / sign-up forms)
+├── Core
+├── NotesListFeature (notes flow)
+└── External packages (via .indigoFoundation helper)
+
+NotesListFeature
+├── Core
+├── NoteEditorFeature
+└── External packages (via .indigoFoundation helper)
+
+NoteEditorFeature
+├── Core
+└── External packages (via .indigoFoundation helper)
+
+AccountFeature / AuthFeature
+├── Core
+├── Components
 └── External packages (via .indigoFoundation helper)
 
 Core → External packages (via .indigoFoundation helper)
-NotesListFeature/NoteEditorFeature → External packages (via .indigoFoundation helper)
 Components → (no dependencies)
 ```
 
@@ -129,6 +151,9 @@ All targets support iOS 26.0+ and macOS 26.0+.
 - **App** - Main application with an example notes screen
 - **Core** - Business logic, database, models, and shared clients
 - **Components** - Dependency-free reusable UI components
+- **RootFeature** - Session shell that presents the notes list and the auth and account sheets
+- **AuthFeature** - Sign-in, sign-up, and forgot-password forms
+- **AccountFeature** - Signed-in profile screen
 - **NotesListFeature/NoteEditorFeature** - Example TCA feature modules (a note-taking flow)
 
 Schemes: **Indigo** (Debug) and **Indigo Release** run the app; **AllTests** runs every module's test suite.
