@@ -8,15 +8,6 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [x] Run the macOS test suite in CI next to iOS (Tasker #539)
-  `.github/workflows/tests.yml` only runs `tuist test --platform ios`, so the
-  macOS slice (its `#if os(iOS)` branches, `App/mac.entitlements`, the backup
-  flag in `Core/Sources/Database/Connection.swift`) is never compiled in CI.
-  Add a macOS job (or an ios/macos matrix) with the same setup steps, ending in
-  `mise exec -- tuist test AllTests --platform macos --no-selective-testing`.
-  Keep the iOS job unchanged; put any runner signing override in the job, not
-  the manifests.
-  Acceptance: the PR shows passing Test iOS and Test macOS checks.
 - [ ] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
   `AuthView` and `ForgotPasswordView` have no `@FocusState`: Return does not
   move to the next field or submit. Add a focus enum (name, email, password)
@@ -93,3 +84,4 @@ Shipped and merged; kept as a short record so the work is not re-proposed.
 - [x] Make logging-client Pulse-free (PulseLogHandler as an optional Debug layer) (Tasker #407)
 - [x] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
 - [x] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
+- [x] Run the macOS test suite in CI next to iOS (Tasker #539)
