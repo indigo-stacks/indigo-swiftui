@@ -8,17 +8,6 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [x] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
-  AGENTS.md says reads use `@FetchAll`, but the shipped example reads through
-  `NotesClient` and refetches after writes. docs/local-caching.md declares a
-  custom `DefaultDatabaseKey` (SQLiteData already provides `defaultDatabase`),
-  shows an `AppMigrations.register(in:)` enum (shipped: `DatabaseMigrator.baseMigrator`
-  + `registerV1Migration()`), says tests use a `DatabaseQueue` (shipped: a
-  `DatabasePool` at a temporary path), and pins sqlite-data `1.4.0` (shipped:
-  1.12.0). Docs only: align those sections with `Core/Sources/Database` and keep
-  `@FetchAll` marked as an alternative the example does not use.
-  Acceptance: `grep -r "AppMigrations\|DefaultDatabaseKey" docs/` returns nothing;
-  AGENTS.md no longer implies the example uses `@FetchAll`.
 - [ ] Run the macOS test suite in CI next to iOS (Tasker #539)
   `.github/workflows/tests.yml` only runs `tuist test --platform ios`, so the
   macOS slice (its `#if os(iOS)` branches, `App/mac.entitlements`, the backup
@@ -103,3 +92,4 @@ Shipped and merged; kept as a short record so the work is not re-proposed.
 - [x] Adopt the Pulse-free http-request-client and jwt-auth-client in indigo-swiftui (Tasker #406)
 - [x] Make logging-client Pulse-free (PulseLogHandler as an optional Debug layer) (Tasker #407)
 - [x] Declare the feature test-bundle dependencies and gate them in CI (Tasker #521)
+- [x] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
