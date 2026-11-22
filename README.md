@@ -50,7 +50,7 @@ This project is organized into multiple modules:
 - **App**: The main iOS/macOS application target that depends on Core, Components, and RootFeature
 - **Core**: Business logic, data models, database, and shared clients
 - **Components**: Reusable SwiftUI components with no external dependencies for maximum portability
-- **RootFeature**: Session shell that presents the notes list for signed-in users and the sign-in and account sheets, and owns sign-out
+- **RootFeature**: Session shell that shows the notes list (usable without a backend), presents the sign-in or account sheet from the account button, and owns sign-out
 - **AuthFeature**: Sign-in, sign-up, and forgot-password forms
 - **AccountFeature**: Signed-in profile screen
 - **NotesListFeature** and **NoteEditorFeature**: Example TCA-based feature modules with their respective reducers and views
@@ -151,7 +151,7 @@ All targets support iOS 26.0+ and macOS 26.0+.
 - **App** - Main application with an example notes screen
 - **Core** - Business logic, database, models, and shared clients
 - **Components** - Dependency-free reusable UI components
-- **RootFeature** - Session shell that presents the notes list and the auth and account sheets
+- **RootFeature** - Session shell with the notes list, the auth and account sheets, and sign-out
 - **AuthFeature** - Sign-in, sign-up, and forgot-password forms
 - **AccountFeature** - Signed-in profile screen
 - **NotesListFeature/NoteEditorFeature** - Example TCA feature modules (a note-taking flow)
