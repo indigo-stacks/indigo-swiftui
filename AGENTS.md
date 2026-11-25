@@ -28,6 +28,7 @@ mise exec -- tuist test --platform ios    # or: --platform macos
 - **App/** — app entry point and screens.
 - **Core/** — models, database + migrations, and clients (`Core/Sources/Clients`).
 - **Components/** — dependency-free reusable SwiftUI components.
+- **RootFeature/** — session shell: shows the notes list (usable without a backend), presents the auth or account sheet from the account button, and owns sign-out.
 - **NotesListFeature/**, **NoteEditorFeature/**, **AuthFeature/**, **AccountFeature/** — example TCA features, each its **own framework target** (not folders under `App`).
 - **Tuist/ProjectDescriptionHelpers/** — `Config.swift` (`teamReverseDomain`, `appTarget`) and `Project+Templates.swift` (`.indigoFoundation`, `Project.framework()`).
 
