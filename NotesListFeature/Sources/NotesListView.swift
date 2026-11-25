@@ -147,11 +147,13 @@ public struct NotesListView: View {
         } else {
           List {
             ForEach(store.notes) { note in
-              NoteRow(note: note)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                  store.send(.noteSelected(note))
-                }
+              Button {
+                store.send(.noteSelected(note))
+              } label: {
+                NoteRow(note: note)
+                  .contentShape(Rectangle())
+              }
+              .buttonStyle(.plain)
             }
             .onDelete { indexSet in
               store.send(.deleteNotes(indexSet))
@@ -165,7 +167,7 @@ public struct NotesListView: View {
           Button {
             store.send(.addNoteButtonTapped)
           } label: {
-            Image(systemName: "plus")
+            Label("New Note", systemImage: "plus")
           }
         }
         // `.navigation` is the leading placement that is valid on both iOS
