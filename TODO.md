@@ -8,14 +8,6 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [x] Document RootFeature, AuthFeature and AccountFeature in the README and AGENTS.md module layout (Tasker #541)
-  README "Project Architecture" lists only the notes features, and its graph
-  shows App depending on them directly; the shipped graph is App → RootFeature
-  → AccountFeature, AuthFeature, NotesListFeature (→ NoteEditorFeature).
-  AGENTS.md "Layout" omits RootFeature. Docs only: list every module that has
-  a `Project.swift` and redraw the graph from the manifests.
-  Acceptance: README and AGENTS.md list every module directory; the README
-  graph matches the `.project(target:)` entries in the manifests.
 - [ ] Make note rows real buttons and label the add-note toolbar button (Tasker #547)
   `NotesListView` opens a note through `.onTapGesture` on the row, so
   VoiceOver does not announce it as a button and macOS keyboard users cannot
@@ -96,3 +88,4 @@ Shipped and merged; kept as a short record so the work is not re-proposed.
 - [x] Correct docs/local-caching.md and the AGENTS.md persistence convention against the shipped code (Tasker #522)
 - [x] Run the macOS test suite in CI next to iOS (Tasker #539)
 - [x] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
+- [x] Document RootFeature, AuthFeature and AccountFeature in the README and AGENTS.md module layout (Tasker #541)
