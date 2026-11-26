@@ -8,7 +8,7 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [ ] Make note rows real buttons and label the add-note toolbar button (Tasker #547)
+- [x] Make note rows real buttons and label the add-note toolbar button (Tasker #547)
   `NotesListView` opens a note through `.onTapGesture` on the row, so
   VoiceOver does not announce it as a button and macOS keyboard users cannot
   activate it. The add-note toolbar button has a bare `plus` image. Wrap each
