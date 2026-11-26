@@ -8,7 +8,7 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [ ] Rewrite docs/migration-guide.md against the shipped Tuist manifests (Tasker #548)
+- [x] Rewrite docs/migration-guide.md against the shipped Tuist manifests (Tasker #548)
   The guide pins Tuist 4.202.2 (shipped 4.208.0), lists a nonexistent
   `Indigo` project, documents a `Project.framework(tca:)` helper that no
   longer exists, sets iOS 18 / macOS 15 targets (shipped 26), copies stale

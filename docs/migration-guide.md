@@ -1,118 +1,131 @@
-# Indigo Stack Migration Guide
+# Indigo Migration Guide
 
-This guide provides step-by-step instructions for migrating existing SwiftUI projects to the Indigo Stack, which uses Tuist for project management, TCA (The Composable Architecture), and a modern modular structure.
+This guide walks an existing SwiftUI project through migrating to Indigo, a
+modular SwiftUI app template managed by Tuist. The template ships The
+Composable Architecture (TCA) for state, SQLiteData/GRDB for persistence, and
+SwiftSharing for reactive state, organized as one app target plus one
+framework project per module.
+
+Every pin, path, and code excerpt below reflects the manifests that ship with
+this repository. When this guide and the manifests disagree, the manifests win;
+please fix the guide.
+
+## Shipped toolchain
+
+| Tool | Version | Where it is pinned |
+| --- | --- | --- |
+| Tuist | 4.208.0 | `mise.toml` |
+| Xcode upgrade check | 27.2 | `Workspace.swift` (`lastXcodeUpgradeCheck`) |
+| Swift tools | 6.4 | `Package.swift` (`swift-tools-version`) |
+| Swift language mode | 6 | `Package.swift` (`swiftLanguageModes`), `SWIFT_VERSION = 6.0` |
+| Deployment targets | iOS 26.0 / macOS 26.0 | `Tuist/ProjectDescriptionHelpers/Project+Templates.swift` (`DeploymentTargets.platforms`) |
+
+Always run Tuist through `mise exec --`: `mise.toml` pins the version, and a
+stale `PATH` binary corrupts SPM state.
+
+## Project structure
+
+```text
+ProjectRoot/
+├── App/                  # App target: entry point, screens, entitlements
+│   ├── Project.swift
+│   ├── Sources/
+│   ├── Resources/
+│   ├── Tests/
+│   ├── ios.entitlements
+│   └── mac.entitlements
+├── Core/                 # Models, database + migrations, clients
+├── Components/           # Dependency-free reusable SwiftUI components
+├── RootFeature/          # Session shell (notes list, auth/account sheets, sign-out)
+├── NotesListFeature/     # Example TCA feature
+├── NoteEditorFeature/    # Example TCA feature
+├── AuthFeature/          # Sign-in, sign-up, forgot-password forms
+├── AccountFeature/       # Signed-in profile screen
+├── Configs/              # Debug.xcconfig, Release.xcconfig, Local.xcconfig.example
+├── Tuist/
+│   └── ProjectDescriptionHelpers/
+│       ├── Config.swift            # teamReverseDomain, appTarget
+│       └── Project+Templates.swift # .indigoFoundation, Project.framework
+├── Tuist.swift
+├── Workspace.swift       # Workspace plus the AllTests scheme
+├── Package.swift         # External dependencies
+├── mise.toml             # Tuist version pin
+└── README.md
+```
+
+Each module directory carries its own `Project.swift` and is its own framework
+target — not a folder under `App`. The workspace registers:
+
+```swift
+// Workspace.swift (excerpt)
+projects: [
+  "App",
+  "Core",
+  "Components",
+  "AccountFeature",
+  "AuthFeature",
+  "NoteEditorFeature",
+  "NotesListFeature",
+  "RootFeature"
+]
+```
 
 ## Prerequisites
 
-- Existing SwiftUI project (iOS/macOS)
-- Xcode 27+ compatibility (Swift tools 6.4)
-- Basic understanding of Swift Package Manager
-- Access to project build settings and configurations
+- An existing SwiftUI project (iOS and/or macOS)
+- Xcode 27.2 or later (Swift 6.4 toolchain)
+- [mise](https://mise.jdx.dev/) for the pinned Tuist toolchain
+- Basic familiarity with Swift Package Manager
 
-## Project Structure Overview
+## Migration steps
 
-The Indigo Stack follows a clean three-layer architecture:
+### Step 1: Set your identity
 
-```md
-ProjectRoot/
-├── App/ # Main application target
-│ ├── Project.swift # App target configuration
-│ ├── Sources/ # App-specific code
-│ ├── Resources/ # App assets and resources
-│ ├── Tests/ # App tests
-│ ├── ios.entitlements # iOS entitlements
-│ └── mac.entitlements # macOS entitlements
-├── Core/ # Business logic & external dependencies
-│ ├── Project.swift # Core framework configuration
-│ ├── Sources/ # Core business logic
-│ └── Tests/ # Core tests
-├── Components/ # Reusable UI components
-│ ├── Project.swift # Components framework configuration
-│ ├── Sources/ # SwiftUI components
-│ └── Tests/ # Component tests
-├── Configs/ # Build configurations
-│ ├── Debug.xcconfig # Debug settings
-│ └── Release.xcconfig # Release settings
-├── Tuist/ # Tuist helpers
-│ └── ProjectDescriptionHelpers/
-│ └── Project+Templates.swift
-├── Tuist.swift # Tuist configuration
-├── Workspace.swift # Workspace definition
-├── Package.swift # Dependencies
-└── mise.toml # Tuist version management
-```
-
-## Migration Steps
-
-### Step 1: Configure Project Settings
-
-**Important**: Before proceeding with the migration, you must update the project configuration values in `Tuist/ProjectDescriptionHelpers/Config.swift`:
+Edit `Tuist/ProjectDescriptionHelpers/Config.swift`:
 
 ```swift
 import ProjectDescription
 
-public let teamReverseDomain = "com.yourcompany"  // Replace with your reverse domain
-public let appTarget: TargetReference = "YourApp"  // Replace with your app name
+public let teamReverseDomain = "com.yourcompany" // Replace with your reverse domain
+public let appTarget: TargetReference = "YourApp" // Replace with your app name
 ```
 
-These values will be used throughout the project configuration to set bundle identifiers, target names, and other project-specific settings.
+`teamReverseDomain` becomes the prefix of every bundle identifier
+(`"\(teamReverseDomain).\(name)"`), and `appTarget` names the app target, its
+scheme (`YourApp`, `YourApp Release`), its test target
+(`YourAppTests`), and the workspace (`YourApp.xcworkspace`). These two values
+are the only places you must personalize.
 
-### Step 2: Install Tuist and Setup Tools
+### Step 2: Install the toolchain
 
 ```bash
-# Install Mise (Tuist version manager)
+# Install mise, which reads mise.toml and installs the pinned Tuist
 curl https://mise.jdx.dev/install.sh | sh
 
-# Create mise.toml file
-echo '[tools]
-tuist = "4.202.2"' > mise.toml
-
-# Install Tuist
+# Install the pinned Tuist (4.208.0)
 mise install
+
+# Resolve the SPM dependencies declared in Package.swift
+mise exec -- tuist install
 ```
 
-### Step 3: Extract Dependencies from Existing Project
+### Step 3: Inventory your existing project
 
-From your existing Xcode project, extract the following information:
+From your existing Xcode project, collect:
 
-#### A. External Dependencies
+- **External dependencies** — every package URL and version from the Package
+  Manager pane.
+- **Build settings** — `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`,
+  bundle identifier, deployment targets, entitlements, custom settings and
+  Info.plist keys.
+- **Code and resources** — Swift sources, asset catalogs, and any other
+  resources.
 
-- Open your existing project in Xcode
-- Navigate to Package Manager dependencies
-- List all external Swift packages
-- Note their versions and URLs
+### Step 4: Declare external dependencies
 
-#### B. Build Settings to Extract
-
-Look for these settings in your existing project:
-
-- `MARKETING_VERSION`
-- `CURRENT_PROJECT_VERSION`
-- `BUNDLE_IDENTIFIER`
-- `DEPLOYMENT_TARGET` (iOS/macOS)
-- `CODE_SIGN_ENTITLEMENTS`
-- `OTHER_LDFLAGS`
-- Custom build settings
-- Info.plist modifications
-
-#### C. Assets and Resources
-
-- Identify all asset catalogs (.xcassets)
-- Locate resource files (images, data files, etc.)
-- Note any custom Info.plist entries
-- Collect entitlements files
-
-### Step 4: Create Core Tuist Configuration Files
-
-#### A. Create `Tuist.swift`
-
-```swift
-import ProjectDescription
-
-let config = Config(project: .tuist())
-```
-
-#### B. Create `Package.swift`
+External packages are declared once in the root `Package.swift` and flow to
+targets through the `.indigoFoundation` helper (see Step 6). The shipped file
+looks like this:
 
 ```swift
 // swift-tools-version: 6.4
@@ -121,553 +134,295 @@ let config = Config(project: .tuist())
 #if TUIST
   import ProjectDescription
 
+  var productTypes = frameworkProductTypes([
+    "Algorithms",
+    // Every product that should link as a framework, e.g.:
+    "ComposableArchitecture",
+    "GRDB",
+    "SQLiteData",
+    "Sharing",
+    // ...
+  ])
+
   let packageSettings = PackageSettings(
-    productTypes: [:]
+    productTypes: productTypes,
+    targetSettings: sharingTargetSettings([
+      "ComposableArchitecture",
+      "JWTAuth",
+      "SQLiteData"
+    ])
   )
 #endif
 
 let package = Package(
-  name: "YourAppName",
+  name: "Indigo",
   dependencies: [
+    .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.26.2"),
+    .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.1"),
+    .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.12.0"),
+    .package(url: "https://github.com/pointfreeco/swift-sharing", from: "2.10.1"),
     // Add your extracted dependencies here
-    // Example:
-    // .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.17.0"),
-  ]
-)
-```
-
-#### C. Create `Workspace.swift`
-
-```swift
-import ProjectDescription
-
-let workspace = Workspace(
-  name: "YourAppName",
-  projects: [
-    "App",
-    "Core",
-    "Components",
-    "Indigo",
-    // Add your feature modules here:
-    // "UserProfile",
-    // "ShoppingCart",
-    // "Settings",
   ],
-  generationOptions: .options(
-    autogeneratedWorkspaceSchemes: .disabled,
-    lastXcodeUpgradeCheck: Version(26, 1, 0)
-  )
+  swiftLanguageModes: [.v6]
 )
 ```
 
-### Step 5: Create Build Configuration Files
+To add one external package to this template:
 
-#### A. Create `Configs/Debug.xcconfig`
+1. Add the package to the `dependencies` list in `Package.swift`.
+2. Add its product to `frameworkProductTypes` in `Package.swift`.
+3. Add `.external(name:)` to `.indigoFoundation` in
+   `Tuist/ProjectDescriptionHelpers/Project+Templates.swift`.
+4. Run `mise exec -- tuist install && mise exec -- tuist generate --no-open`.
 
-```config
-ALWAYS_SEARCH_USER_PATHS=NO
-CLANG_ANALYZER_NONNULL=YES
-CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION=YES_AGGRESSIVE
-CLANG_CXX_LANGUAGE_STANDARD=gnu++14
-CLANG_CXX_LIBRARY=libc++
-CLANG_ENABLE_MODULES=YES
-CLANG_ENABLE_OBJC_ARC=YES
-CLANG_ENABLE_OBJC_WEAK=YES
-CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING=YES
-CLANG_WARN_BOOL_CONVERSION=YES
-CLANG_WARN_COMMA=YES
-CLANG_WARN_CONSTANT_CONVERSION=YES
-CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS=YES
-CLANG_WARN_DIRECT_OBJC_ISA_USAGE=YES_ERROR
-CLANG_WARN_DOCUMENTATION_COMMENTS=YES
-CLANG_WARN_EMPTY_BODY=YES
-CLANG_WARN_ENUM_CONVERSION=YES
-CLANG_WARN_INFINITE_RECURSION=YES
-CLANG_WARN_INT_CONVERSION=YES
-CLANG_WARN_NON_LITERAL_NULL_CONVERSION=YES
-CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF=YES
-CLANG_WARN_OBJC_LITERAL_CONVERSION=YES
-CLANG_WARN_OBJC_ROOT_CLASS=YES_ERROR
-CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER=YES
-CLANG_WARN_RANGE_LOOP_ANALYSIS=YES
-CLANG_WARN_STRICT_PROTOTYPES=YES
-CLANG_WARN_SUSPICIOUS_MOVE=YES
-CLANG_WARN_UNGUARDED_AVAILABILITY=YES_AGGRESSIVE
-CLANG_WARN_UNREACHABLE_CODE=YES
-CLANG_WARN__DUPLICATE_METHOD_MATCH=YES
-COPY_PHASE_STRIP=NO
-ENABLE_STRICT_OBJC_MSGSEND=YES
-GCC_C_LANGUAGE_STANDARD=gnu11
-GCC_NO_COMMON_BLOCKS=YES
-GCC_WARN_64_TO_32_BIT_CONVERSION=YES
-GCC_WARN_ABOUT_RETURN_TYPE=YES_ERROR
-GCC_WARN_UNDECLARED_SELECTOR=YES
-GCC_WARN_UNINITIALIZED_AUTOS=YES_AGGRESSIVE
-GCC_WARN_UNUSED_FUNCTION=YES
-GCC_WARN_UNUSED_VARIABLE=YES
-IPHONEOS_DEPLOYMENT_TARGET=26.0
-MTL_FAST_MATH=YES
-SDKROOT=iphoneos
-SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG
-SWIFT_OPTIMIZATION_LEVEL=-Onone
-ONLY_ACTIVE_ARCH=YES
-DEBUG_INFORMATION_FORMAT=dwarf
-ENABLE_NS_ASSERTIONS=YES
-ENABLE_TESTABILITY=YES
-GCC_DYNAMIC_NO_PIC=NO
-GCC_OPTIMIZATION_LEVEL=0
-GCC_PREPROCESSOR_DEFINITIONS=DEBUG=1
-MTL_ENABLE_DEBUG_INFO=INCLUDE_SOURCE
-DISPLAY_NAME="YourApp Dev"
-```
+Centralizing products in `.indigoFoundation` prevents double-linking: a
+target never declares an external dependency directly, it inherits the helper
+array.
 
-#### B. Create `Configs/Release.xcconfig`
+The `Sharing` product ships with a module alias applied via
+`sharingTargetSettings`: targets get
+`OTHER_SWIFT_FLAGS = -module-alias Sharing=SwiftSharing` so the `import
+Sharing` name keeps working while the compiled module is `SwiftSharing`. The
+Tuist helper reapplies that flag to local targets through `usesSharing`
+(Step 6).
+
+### Step 5: Build configurations
+
+`App/Project.swift` maps two configurations to two shipped xcconfig files:
+
+- `Configs/Debug.xcconfig` — recommended warning settings, `DEBUG` condition,
+  `DISPLAY_NAME="Indigo Dev"`, `MARKETING_VERSION`.
+- `Configs/Release.xcconfig` — the release counterparts,
+  `DISPLAY_NAME="Indigo"`.
+
+Both files end with an optional include of a per-developer override file. Copy
+`Configs/Local.xcconfig.example` to `Configs/Local.xcconfig` (git-ignored) and
+set your Apple Developer Team ID there:
 
 ```config
-ALWAYS_SEARCH_USER_PATHS=NO
-CLANG_ANALYZER_NONNULL=YES
-CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION=YES_AGGRESSIVE
-CLANG_CXX_LANGUAGE_STANDARD=gnu++14
-CLANG_CXX_LIBRARY=libc++
-CLANG_ENABLE_MODULES=YES
-CLANG_ENABLE_OBJC_ARC=YES
-CLANG_ENABLE_OBJC_WEAK=YES
-CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING=YES
-CLANG_WARN_BOOL_CONVERSION=YES
-CLANG_WARN_COMMA=YES
-CLANG_WARN_CONSTANT_CONVERSION=YES
-CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS=YES
-CLANG_WARN_DIRECT_OBJC_ISA_USAGE=YES_ERROR
-CLANG_WARN_DOCUMENTATION_COMMENTS=YES
-CLANG_WARN_EMPTY_BODY=YES
-CLANG_WARN_ENUM_CONVERSION=YES
-CLANG_WARN_INFINITE_RECURSION=YES
-CLANG_WARN_INT_CONVERSION=YES
-CLANG_WARN_NON_LITERAL_NULL_CONVERSION=YES
-CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF=YES
-CLANG_WARN_OBJC_LITERAL_CONVERSION=YES
-CLANG_WARN_OBJC_ROOT_CLASS=YES_ERROR
-CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER=YES
-CLANG_WARN_RANGE_LOOP_ANALYSIS=YES
-CLANG_WARN_STRICT_PROTOTYPES=YES
-CLANG_WARN_SUSPICIOUS_MOVE=YES
-CLANG_WARN_UNGUARDED_AVAILABILITY=YES_AGGRESSIVE
-CLANG_WARN_UNREACHABLE_CODE=YES
-CLANG_WARN__DUPLICATE_METHOD_MATCH=YES
-COPY_PHASE_STRIP=NO
-ENABLE_STRICT_OBJC_MSGSEND=YES
-GCC_C_LANGUAGE_STANDARD=gnu11
-GCC_NO_COMMON_BLOCKS=YES
-GCC_WARN_64_TO_32_BIT_CONVERSION=YES
-GCC_WARN_ABOUT_RETURN_TYPE=YES_ERROR
-GCC_WARN_UNDECLARED_SELECTOR=YES
-GCC_WARN_UNINITIALIZED_AUTOS=YES_AGGRESSIVE
-GCC_WARN_UNUSED_FUNCTION=YES
-GCC_WARN_UNUSED_VARIABLE=YES
-IPHONEOS_DEPLOYMENT_TARGET=26.0
-MTL_FAST_MATH=YES
-SDKROOT=iphoneos
-SWIFT_COMPILATION_MODE=wholemodule
-SWIFT_OPTIMIZATION_LEVEL=-O
-VALIDATE_PRODUCT=YES
-DEBUG_INFORMATION_FORMAT=dwarf-with-dsym
-ENABLE_NS_ASSERTIONS=NO
-MTL_ENABLE_DEBUG_INFO=NO
-DISPLAY_NAME="YourApp"
+DEVELOPMENT_TEAM=YOUR_TEAM_ID
 ```
 
-### Step 6: Create Tuist Helper Templates
+Keep custom build settings in these xcconfig files instead of duplicating them
+per target.
 
-#### Create `Tuist/ProjectDescriptionHelpers/Project+Templates.swift`
+### Step 6: Use the framework helper
+
+`Tuist/ProjectDescriptionHelpers/Project+Templates.swift` defines the single
+factory every module project uses:
 
 ```swift
-import ProjectDescription
-
 extension Project {
   public static func framework(
     name: String,
-    reverseDomain: String,
-    tca: Bool = false,
-    dependencies: [TargetDependency] = []
-  ) -> Project {
-    .init(
-      name: name,
-      settings: .settings(
-        base: [
-          "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
-          "ENABLE_MODULE_VERIFIER": "YES",
-          "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": "gnu11 gnu++14",
-        ]
-      ),
-      targets: [
-        .target(
-          name: name,
-          destinations: [.iPad, .iPhone, .mac],
-          product: .framework,
-          bundleId: "\(reverseDomain).\(name)",
-          deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
-          sources: ["Sources/**"],
-          dependencies: (tca
-            ? [.project(target: "Indigo", path: .relativeToRoot("Indigo"))] : [])
-            + dependencies
-        ),
-        .target(
-          name: "\(name)Tests",
-          destinations: [.iPad, .iPhone, .mac],
-          product: .unitTests,
-          bundleId: "\(reverseDomain).\(name)Tests",
-          sources: ["Tests/**"]
-        ),
-      ]
-    )
-  }
+    reverseDomain: String = teamReverseDomain,
+    dependencies: [TargetDependency] = [],
+    testDependencies: [TargetDependency] = [],
+    usesSharing: Bool = false,
+    usesDebugTools: Bool = false
+  ) -> Project
 }
 ```
 
-### Step 7: Create Module Projects
+It creates the framework target plus a `\(name)Tests` unit-test target, both
+with `destinations: .destinations` (iPhone, iPad, Mac) and
+`deploymentTargets: .platforms` (iOS 26.0, macOS 26.0). Its shared base
+settings include `ENABLE_MODULE_VERIFIER`, `ENABLE_USER_SCRIPT_SANDBOXING`,
+`MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14"`,
+`STRING_CATALOG_GENERATE_SYMBOLS`, `DEFINES_MODULE = NO`, and
+`SWIFT_VERSION = 6.0`.
 
-#### A. Create `App/Project.swift`
+Three switches matter:
 
-```swift
-import ProjectDescription
+- **`usesSharing`** — pass `true` from any target whose sources `import
+  Sharing`. The flag applies
+  `OTHER_SWIFT_FLAGS = "$(inherited) -module-alias Sharing=SwiftSharing"` to
+  the framework target **and** its generated test bundle, so tests can import
+  `Sharing` too.
+- **`usesDebugTools`** — pass `true` to depend on `.debugTools` (the Pulse
+  network logger and PulseUI) in Debug builds only. The flag also applies
+  `SettingsDictionary.debugToolsSettings`
+  (`EXCLUDED_SOURCE_FILE_NAMES[config=Release] = Pulse*.framework`), so no
+  Pulse binary ships in Release. Import them only under `#if DEBUG`.
+- **`dependencies` / `testDependencies`** — combine local `.project(target:)`
+  edges with `.indigoFoundation` for the shared externals.
 
-let project = Project(
-  name: "App",
-  settings: .settings(
-    base: [
-      "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
-      "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": "YES",
-    ],
-    configurations: [
-      .debug(name: "Debug", xcconfig: .relativeToRoot("Configs/Debug.xcconfig")),
-      .release(name: "Release", xcconfig: .relativeToRoot("Configs/Release.xcconfig")),
-    ]
-  ),
-  targets: [
-    .target(
-      name: "YourAppName",
-      destinations: [.iPad, .iPhone, .mac],
-      product: .app,
-      bundleId: "com.yourcompany.YourAppName",
-      deploymentTargets: .multiplatform(iOS: "18.0", macOS: "15.0"),
-      infoPlist: .extendingDefault(
-        with: [
-          "UILaunchScreen": [
-            "UIColorName": "",
-            "UIImageName": "",
-          ]
-        ]
-      ),
-      sources: ["Sources/**"],
-      resources: ["Resources/**"],
-      dependencies: [
-        .project(target: "Core", path: .relativeToRoot("Core")),
-        .project(target: "Components", path: .relativeToRoot("Components")),
-        // Add your feature module dependencies here:
-        // .project(target: "UserProfile", path: .relativeToRoot("UserProfile")),
-        // .project(target: "ShoppingCart", path: .relativeToRoot("ShoppingCart")),
-        // .project(target: "Settings", path: .relativeToRoot("Settings")),
-      ],
-      settings: .settings(
-        base: [
-          "OTHER_LDFLAGS": ["$(inherited)", "-ObjC"],
-          "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": .string("mac.entitlements"),
-          "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": .string("ios.entitlements"),
-          "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": .string("ios.entitlements"),
-          "INFOPLIST_KEY_CFBundleDisplayName": "$(DISPLAY_NAME)",
-        ]
-      )
-    )
-  ],
-  schemes: [
-    .scheme(
-      name: "YourAppName Debug",
-      shared: true,
-      buildAction: .buildAction(targets: ["YourAppName"]),
-      runAction: .runAction(
-        configuration: "Debug",
-        executable: "YourAppName"
-      ),
-      archiveAction: .archiveAction(configuration: "Debug"),
-      profileAction: .profileAction(
-        configuration: "Debug",
-        executable: "YourAppName"
-      ),
-      analyzeAction: .analyzeAction(configuration: "Debug")
-    ),
-    .scheme(
-      name: "YourAppName Release",
-      shared: true,
-      buildAction: .buildAction(targets: ["YourAppName"]),
-      runAction: .runAction(
-        configuration: "Release",
-        executable: "YourAppName"
-      ),
-      archiveAction: .archiveAction(configuration: "Release"),
-      profileAction: .profileAction(
-        configuration: "Release",
-        executable: "YourAppName"
-      ),
-      analyzeAction: .analyzeAction(configuration: "Release")
-    ),
-  ]
-)
-```
+### Step 7: Create module projects
 
-#### B. Create `Core/Project.swift`
+Each module directory holds a small `Project.swift` built on the helper. The
+shipped examples are the pattern to copy:
 
 ```swift
+// Core/Project.swift
 import ProjectDescription
 import ProjectDescriptionHelpers
 
 let project = Project.framework(
   name: "Core",
-  reverseDomain: "net.4rays"
+  dependencies: .indigoFoundation,
+  testDependencies: .indigoFoundation,
+  usesSharing: true,
+  usesDebugTools: true
 )
 ```
 
-#### C. Create `Components/Project.swift`
-
 ```swift
+// NotesListFeature/Project.swift
 import ProjectDescription
 import ProjectDescriptionHelpers
 
 let project = Project.framework(
-  name: "Components",
-  reverseDomain: "net.4rays"
+  name: "NotesListFeature",
+  dependencies: [
+    .project(target: "Core", path: .relativeToRoot("Core")),
+    .project(target: "NoteEditorFeature", path: .relativeToRoot("NoteEditorFeature"))
+  ] + .indigoFoundation,
+  testDependencies: [
+    .project(target: "Core", path: .relativeToRoot("Core")),
+    .project(target: "NoteEditorFeature", path: .relativeToRoot("NoteEditorFeature"))
+  ] + .indigoFoundation
 )
 ```
 
-#### D. Create Feature Modules (Optional)
+`Components` is the dependency-free tier: it declares no dependencies at all.
 
-> **Note**: NotesListFeature and NoteEditorFeature are example feature modules provided as reference implementations. In your actual project, you should create feature modules that correspond to your application's specific functionality (e.g., UserProfile, ShoppingCart, Settings, etc.).
+The app target is declared directly in `App/Project.swift` rather than through
+`Project.framework`, because it is an `.app` product with per-platform
+entitlements (`ios.entitlements` / `mac.entitlements` selected by SDK), the
+two xcconfig-backed configurations, launch-screen Info.plist keys, and
+`.indigoFoundation` + `.debugTools` appended to its dependencies by hand. Copy
+that file and rename the references through `Config.swift` values
+(`appTarget.targetName`), which it already uses.
 
-For TCA-based feature modules, create individual feature projects based on your app's requirements:
+### Step 8: Follow the module naming conventions
 
-**Example: UserProfile/Project.swift:**
-
-```swift
-import ProjectDescription
-import ProjectDescriptionHelpers
-
-let project = Project.framework(
-  name: "UserProfile",
-  reverseDomain: "com.yourcompany",
-  tca: true,
-)
-```
-
-**Example: ShoppingCart/Project.swift:**
+- Name the `@Reducer` after the module: `XFeature` — `NotesListFeature`,
+  `AuthFeature`, and so on.
+- Name the SwiftUI view `XView` — `NotesListView`.
 
 ```swift
-import ProjectDescription
-import ProjectDescriptionHelpers
+// UserProfile/Sources/UserProfileFeature.swift
+import ComposableArchitecture
+import SwiftUI
 
-let project = Project.framework(
-  name: "ShoppingCart",
-  reverseDomain: "com.yourcompany",
-  tca: true,
-)
-```
-
-### Step 7a: Feature Module Naming Conventions
-
-When creating TCA-based feature modules, follow these naming conventions:
-
-#### Reducer Naming
-
-- Use `{ModuleName}Feature` pattern for reducers
-- Examples:
-  - `UserProfileFeature` for UserProfile module
-  - `ShoppingCartFeature` for ShoppingCart module
-  - `SettingsFeature` for Settings module
-
-#### View Naming
-
-- Use `{ModuleName}View` pattern for main views
-- Examples:
-  - `UserProfileView` for UserProfile module
-  - `ShoppingCartView` for ShoppingCart module
-  - `SettingsView` for Settings module
-
-#### Example Feature Structure
-
-Replace `UserProfile` with your actual feature name:
-
-```swift
-// UserProfile/Sources/Feature.swift
 @Reducer
-public struct UserProfileFeature {
-  // State, Action, and reducer body implementation
+struct UserProfileFeature {
+  // State, Action, and reducer body
 }
 
-public struct UserProfileView: View {
-  @Bindable public var store: StoreOf<UserProfileFeature>
+struct UserProfileView: View {
+  @Bindable var store: StoreOf<UserProfileFeature>
 
-  public var body: some View {
+  var body: some View {
     // View implementation
   }
 }
 ```
 
-### Step 8: Code Migration Strategy
+### Step 9: Register the module in the workspace
 
-#### A. Initial Code Placement
-
-For simplicity, initially place ALL existing code in the `App/Sources/` directory:
-
-- Copy all Swift files from your existing project
-- Maintain existing folder structure within `App/Sources/`
-- Keep existing import statements intact
-
-#### B. Resource Migration
-
-1. Copy `Assets.xcassets` to `App/Resources/`
-2. Move other resources to `App/Resources/`
-3. Copy entitlements files to `App/` directory
-4. Update resource references in code if needed
-
-#### C. Test Migration
-
-1. Copy existing test files to `App/Tests/`
-2. Update test target references
-3. Fix any import issues
-
-### Step 9: Generate and Verify
-
-```bash
-# Install dependencies
-mise exec -- tuist install
-
-# Generate Xcode project
-mise exec -- tuist generate
-
-# Open the generated workspace
-open YourApp.xcworkspace
-```
-
-### Step 10: Gradual Refactoring (Post-Migration)
-
-Once the project builds successfully, gradually refactor:
-
-#### A. Extract Reusable Components
-
-- Move generic SwiftUI views to `Components/Sources/`
-- Ensure components have no external dependencies
-- Update imports in App module
-
-#### B. Extract Business Logic
-
-- Move data models to `Core/Sources/`
-- Move API clients to `Core/Sources/`
-- Move business logic to `Core/Sources/`
-- Add necessary dependencies to `Core/Project.swift`
-
-#### C. Update Dependencies
-
-- Remove dependencies from App target
-- Add dependencies to appropriate modules
-- Update imports throughout codebase
-
-### Step 11: Common Issues and Solutions
-
-#### A. Import Issues
-
-- **Problem**: Missing imports after migration
-- **Solution**: Add explicit imports for frameworks used
-- **Example**: Add `import SwiftUI` to views
-
-#### B. Resource Access
-
-- **Problem**: Resources not found
-- **Solution**: Update bundle access or use Tuist's generated resource accessors
-
-#### C. Build Settings
-
-- **Problem**: Custom build settings not applied
-- **Solution**: Add them to appropriate `.xcconfig` files or Project.swift
-
-#### D. Code Signing
-
-- **Problem**: Entitlements not applied
-- **Solution**: Ensure entitlements files are in correct location and referenced in Project.swift
-
-### Step 12: Verification Checklist
-
-- [ ] Project builds successfully
-- [ ] All resources are accessible
-- [ ] Tests run without issues
-- [ ] App launches on simulator/device
-- [ ] All existing functionality works
-- [ ] Code signing works for distribution
-- [ ] All schemes build correctly
-
-### Step 13: Advanced Configuration
-
-#### A. Custom Build Phases
-
-Add custom build phases in Project.swift:
+Add your module's directory to `projects` in `Workspace.swift`, and add its
+test bundle to the workspace-level `AllTests` scheme:
 
 ```swift
-.target(
-  name: "YourApp",
-  // ... other configuration
-  scripts: [
-    .pre(
-      script: "echo 'Custom build phase'",
-      name: "Custom Pre-build"
-    )
-  ]
+// Workspace.swift (excerpt)
+.testableTarget(
+  target: .project(path: "NotesListFeature", target: "NotesListFeatureTests")
 )
 ```
 
-#### B. Multiple Platforms
+A project-level scheme can only reference its own project's targets, so
+`AllTests` lives at the workspace level and aggregates every module's tests
+into one run-all surface. Run it with the platform flag shown in Step 11, or
+select it in Xcode.
 
-Configure different settings per platform:
+### Step 10: Move your code in
 
-```swift
-settings: .settings(
-  base: [
-    "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": .string("mac.entitlements"),
-    "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": .string("ios.entitlements"),
-  ]
-)
-```
+For the first working build, place everything in `App/Sources/`:
 
-## Best Practices for AI Agents
+- Copy all Swift files, preserving folder structure and imports.
+- Move asset catalogs and other resources to `App/Resources/`.
+- Copy your entitlements to `App/ios.entitlements` and `App/mac.entitlements`.
+- Copy tests into `App/Tests/`.
 
-1. **Incremental Migration**: Start with basic structure, then refactor gradually
-2. **Backup Original**: Always keep original project as reference
-3. **Test Frequently**: Generate and test after each major change
-4. **Follow Naming Conventions**: Use consistent naming for modules and targets
-5. **Documentation**: Keep migration notes for future reference
-6. **Dependencies**: Be careful with external dependencies - prefer explicit over implicit
-7. **Resource Management**: Verify all resources are accessible after migration
+### Step 11: Generate and verify
 
-## Common Pitfalls to Avoid
-
-- Don't change too much at once
-- Don't forget to update bundle identifiers
-- Don't mix module responsibilities initially
-- Don't ignore build warnings
-- Don't forget to update Info.plist entries
-
-## Migration Commands Reference
+The Xcode project is generated — never hand-edit the `.xcworkspace` or
+`.xcodeproj`; change the manifests and regenerate.
 
 ```bash
-# Setup
-curl https://mise.jdx.dev/install.sh | sh
-mise install
-
-# Development workflow
-mise exec -- tuist install          # Install dependencies
-mise exec -- tuist generate         # Generate Xcode project
-mise exec -- tuist clean           # Clean generated files
-mise exec -- tuist edit            # Edit Tuist configuration
-
-# Troubleshooting
-mise exec -- tuist graph           # Visualize project structure
-mise exec -- tuist build           # Build without Xcode
+mise exec -- tuist generate --no-open
 ```
 
-This migration guide provides a systematic approach for AI agents to successfully migrate SwiftUI projects to the Indigo Stack architecture while maintaining functionality and enabling future modular development.
+Then run every module's tests. The project has multi-platform targets, so
+always pass a platform — never run `tuist build` or `tuist test` without one:
+
+```bash
+mise exec -- tuist test AllTests --platform macos --no-selective-testing
+```
+
+Open `Indigo.xcworkspace`, select the `Indigo` scheme, and run the app on an
+iOS simulator or on My Mac.
+
+### Step 12: Refactor gradually
+
+With the app building from `App/Sources/`, extract code into the module tiers,
+regenerating and re-running `AllTests` after each move:
+
+- **Components** — reusable SwiftUI views with no external dependencies.
+- **Core** — models, the database, and API clients. Reads go through clients
+  (`NotesClient` → `database.read`); writes use the structured query API.
+- **Features** — one TCA feature per framework target, depending on `Core`,
+  `Components`, and `.indigoFoundation`, wired into `RootFeature`.
+
+Remove dependencies from the app target as features take them over, and keep
+import statements pointing at module names.
+
+### Step 13: Troubleshooting
+
+- **Undefined symbols for a third-party product** — the target did not inherit
+  `.indigoFoundation`, or the product is missing from `frameworkProductTypes`
+  in `Package.swift`. Complete the four-step recipe in Step 4, then
+  regenerate.
+- **`Sharing` vs `SwiftSharing` mismatch** — a target imports `Sharing` but
+  does not carry the module-alias flag. Set `usesSharing: true` (frameworks)
+  or add `-module-alias Sharing=SwiftSharing` to `OTHER_SWIFT_FLAGS` (the app
+  target and its tests set it by hand).
+- **Pulse appears in a Release build** — a target added `.debugTools` without
+  also applying `SettingsDictionary.debugToolsSettings`, or a framework forgot
+  `usesDebugTools: true`. Release must never link Pulse.
+- **Resources not found** — Tuist generates resource accessors; reference
+  resources through those accessors and keep them under the target's
+  `Resources/` folder.
+- **Signing fails on device** — set `DEVELOPMENT_TEAM` in
+  `Configs/Local.xcconfig` (Step 5).
+- **Dependency-graph surprises** — audit the graph after structural changes:
+
+  ```bash
+  mise exec -- tuist inspect dependencies
+  ```
+
+## Verification checklist
+
+- [ ] `mise exec -- tuist generate --no-open` succeeds without warnings about your modules
+- [ ] `mise exec -- tuist test AllTests --platform macos --no-selective-testing` passes
+- [ ] All resources resolve through generated accessors
+- [ ] The app runs on an iOS simulator and on macOS
+- [ ] `mise exec -- tuist inspect dependencies` reports no implicit or redundant dependencies
+- [ ] Device builds sign with the team from `Configs/Local.xcconfig`
+
+## Command reference
+
+```bash
+mise install                                                 # Install the pinned Tuist
+mise exec -- tuist install                                   # Resolve SPM dependencies
+mise exec -- tuist generate --no-open                        # Regenerate the Xcode project
+mise exec -- tuist test AllTests --platform macos --no-selective-testing
+mise exec -- tuist inspect dependencies                      # Audit the dependency graph
+mise exec -- tuist edit                                      # Open the manifests in a scratch project
+mise exec -- tuist clean                                     # Remove local artifacts
+```
+
+Run every command through `mise exec --` so the pinned Tuist version is used.
+Never run `tuist build` or `tuist test` without `--platform`: the generated
+project has multi-platform targets.
