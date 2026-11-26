@@ -93,8 +93,10 @@ public let appTarget: TargetReference = "YourApp" // Replace with your app name
 `teamReverseDomain` becomes the prefix of every bundle identifier
 (`"\(teamReverseDomain).\(name)"`), and `appTarget` names the app target, its
 scheme (`YourApp`, `YourApp Release`), its test target
-(`YourAppTests`), and the workspace (`YourApp.xcworkspace`). These two values
-are the only places you must personalize.
+(`YourAppTests`), and the workspace (`YourApp.xcworkspace`). Alongside these
+two values, personalize the per-configuration display names in the xcconfigs
+(Step 5): `DISPLAY_NAME="Indigo Dev"` in `Configs/Debug.xcconfig` and
+`DISPLAY_NAME="Indigo"` in `Configs/Release.xcconfig`.
 
 ### Step 2: Install the toolchain
 
@@ -361,8 +363,10 @@ always pass a platform — never run `tuist build` or `tuist test` without one:
 mise exec -- tuist test AllTests --platform macos --no-selective-testing
 ```
 
-Open `Indigo.xcworkspace`, select the `Indigo` scheme, and run the app on an
-iOS simulator or on My Mac.
+Open the generated workspace and run the app on an iOS simulator or on My
+Mac. The workspace, workspace file, and scheme are named after `appTarget`:
+in the unmodified template that is `Indigo.xcworkspace` with the `Indigo`
+scheme; after Step 1 it is `<YourApp>.xcworkspace` with `<YourApp>`.
 
 ### Step 12: Refactor gradually
 
@@ -372,8 +376,13 @@ regenerating and re-running `AllTests` after each move:
 - **Components** — reusable SwiftUI views with no external dependencies.
 - **Core** — models, the database, and API clients. Reads go through clients
   (`NotesClient` → `database.read`); writes use the structured query API.
-- **Features** — one TCA feature per framework target, depending on `Core`,
-  `Components`, and `.indigoFoundation`, wired into `RootFeature`.
+- **Features** — one TCA feature per framework target, wired into
+  `RootFeature`. Add `.project(target: "Core", …)` when the feature reads
+  models or clients, `.project(target: "Components", …)` only when it uses
+  shared UI, and `.indigoFoundation` for the shared externals — the shipped
+  manifests show both shapes: `AuthFeature` and `AccountFeature` depend on
+  `Core` and `Components`; `NotesListFeature` and `NoteEditorFeature` depend
+  on `Core` without `Components`.
 
 Remove dependencies from the app target as features take them over, and keep
 import statements pointing at module names.
