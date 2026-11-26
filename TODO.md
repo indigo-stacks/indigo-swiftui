@@ -8,15 +8,6 @@ followed by `mise exec -- tuist test AllTests --platform macos --no-selective-te
 (the generated project has multi-platform targets, so never run `tuist build`
 without `--platform`); do not rely on a simulator run.
 
-- [x] Make note rows real buttons and label the add-note toolbar button (Tasker #547)
-  `NotesListView` opens a note through `.onTapGesture` on the row, so
-  VoiceOver does not announce it as a button and macOS keyboard users cannot
-  activate it. The add-note toolbar button has a bare `plus` image. Wrap each
-  row in a `Button` sending `.noteSelected(note)` (keep the row look and
-  `.onDelete`), and use `Label("New Note", systemImage: "plus")`. No reducer
-  change.
-  Acceptance: no `onTapGesture` remains in `NotesListView.swift`; the add
-  button has a text label; the macOS `AllTests` run passes.
 - [ ] Rewrite docs/migration-guide.md against the shipped Tuist manifests (Tasker #548)
   The guide pins Tuist 4.202.2 (shipped 4.208.0), lists a nonexistent
   `Indigo` project, documents a `Project.framework(tca:)` helper that no
@@ -28,6 +19,18 @@ without `--platform`); do not rely on a simulator run.
   Acceptance: every pin, helper signature, deployment target and module name
   matches the manifests; no command runs `tuist build`/`test` without
   `--platform`.
+
+- [ ] Present notes errors with @Presents AlertState like RootFeature (Tasker #574)
+  `NotesListFeature` and `NoteEditorFeature` keep `errorMessage` plus
+  `dismissError` and build the alert from a hand-rolled
+  `Binding(get: errorMessage != nil)`, showing raw
+  `error.localizedDescription`. `RootFeature` already uses
+  `@Presents var alert: AlertState<Never>?` with fixed user-facing text.
+  Move both notes features to that pattern, log the underlying error with
+  os `Logger`, and update the tests that use `errorMessage`/`dismissError`.
+  Acceptance: no `errorMessage`, `dismissError` or `localizedDescription`
+  in either feature; no `Binding(get:` in either view; the macOS
+  `AllTests` run passes.
 
 ## Not ready
 
@@ -89,3 +92,4 @@ Shipped and merged; kept as a short record so the work is not re-proposed.
 - [x] Run the macOS test suite in CI next to iOS (Tasker #539)
 - [x] Chain keyboard focus and Return-to-submit through the auth forms (Tasker #540)
 - [x] Document RootFeature, AuthFeature and AccountFeature in the README and AGENTS.md module layout (Tasker #541)
+- [x] Make note rows real buttons and label the add-note toolbar button (Tasker #547)
